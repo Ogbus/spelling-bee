@@ -36,6 +36,29 @@ const feedback = document.getElementById('feedback');
 const statCorrect = document.getElementById('stat-correct');
 const statTotal = document.getElementById('stat-total');
 const statPct = document.getElementById('stat-pct');
+
+// --- Voice selection: prefer a clearer network voice (e.g. Google) over
+// the default local voice, which on Windows is often a robotic SAPI voice ---
+let preferredVoice = null;
+ 
+function pickBestVoice() {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return;
+ 
+    preferredVoice =
+      voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) ||
+      voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
+      voices.find(v => v.lang === 'en-US') ||
+      voices.find(v => v.lang.startsWith('en')) ||
+      voices[0];
+}
+ 
+// Voices load asynchronously in some browsers (notably Chrome) —
+// grab them once now, and again when the list becomes available.
+pickBestVoice();
+  if ('onvoiceschanged' in window.speechSynthesis) {
+    window.speechSynthesis.onvoiceschanged = pickBestVoice;
+}
  
 // --- Pick a new word ---
 function pickWord() {
@@ -49,6 +72,7 @@ function playWord() {
     const utterance = new SpeechSynthesisUtterance(state.currentWord);
     utterance.rate = 0.8;
     utterance.lang = 'en-US';
+    if (preferredVoice) utterance.voice = preferredVoice;
     utterance.onstart = () => wave.classList.add('playing');
     utterance.onend = () => wave.classList.remove('playing');
     utterance.onerror = () => wave.classList.remove('playing');
