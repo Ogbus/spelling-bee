@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spell It</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="card">
+        <p class="eyebrow">Spell It · Practice Round</p>
+        <h1>Listen. Spell. Learn.</h1>
+ 
+        <div class="play-row">
+            <button class="play-btn" id="play-btn" type="button" aria-label="Play word">
+               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <div class="wave" id="wave">
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+        </div>
+ 
+        <form id="spell-form">
+            <label for="word-input">Type the word you heard</label>
+            <div class="input-row">
+                <input type="text" id="word-input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="start typing…" />
+                <button id="submit-btn" type="button">Enter</button>
+            </div>
+            <p class="feedback" id="feedback"></p>
+        </form>
+ 
+        <div class="ledger">
+            <div class="stat">
+                <span class="stat-value" id="stat-correct">0</span>
+                <span class="stat-label">Correct</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-total">0</span>
+                <span class="stat-label">Attempted</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-pct">0%</span>
+                <span class="stat-label">Accuracy</span>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
