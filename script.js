@@ -199,7 +199,7 @@ function handleSubmit() {
       feedback.textContent = '';
       pickWord();
       input.focus();
-    }, 1100);
+    }, 5000);
     return;
   }
 
@@ -214,7 +214,7 @@ function handleSubmit() {
     setTimeout(() => {
       input.value = '';
       input.classList.remove('incorrect');
-    }, 500);
+    }, 5000);
   } else {
     // Out of tries — mark as missed, reveal the word, move on
     state.wordsPlayed++;
