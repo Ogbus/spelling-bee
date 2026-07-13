@@ -24,7 +24,11 @@
         </div>
  
         <form id="spell-form">
-            <label for="word-input">Type the word you heard</label>
+            <!-- <label for="word-input">Type the word you heard</label> -->
+             <div class="label-row">
+                <label for="word-input">Type the word you heard</label>
+                <span class="tries" id="tries-display">5 / 5 tries left</span>
+            </div>
             <div class="input-row">
                 <input type="text" id="word-input" readonly inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" autocorrect="off" placeholder="start typing…" />
                 <button id="submit-btn" type="button">Enter</button>
