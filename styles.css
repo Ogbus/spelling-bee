@@ -199,6 +199,58 @@ label {
 .feedback.correct { color: var(--correct); }
 .feedback.incorrect { color: var(--incorrect); }
 
+.keyboard {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+ 
+.kb-row {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+}
+ 
+.kb-row-offset { padding: 0 16px; }
+ 
+.key {
+    flex: 1;
+    max-width: 40px;
+    height: 44px;
+    border: none;
+    border-radius: 4px;
+    background: #fffdf8;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    text-transform: lowercase;
+    cursor: pointer;
+    transition: background 0.1s ease, transform 0.1s ease;
+}
+ 
+.key:hover { background: var(--parchment-dim); }
+.key:active { background: var(--gold); transform: scale(0.94); }
+ 
+.key-wide {
+    flex: 1.6;
+    max-width: 64px;
+    font-size: 16px;
+    background: var(--ink);
+    color: var(--parchment);
+    border-color: var(--ink);
+}
+ 
+.key-wide:hover { background: #2c3531; }
+.key-wide:active { background: #101513; transform: scale(0.96); }
+ 
+.key-enter { background: var(--gold-dim); border-color: var(--gold-dim); }
+.key-enter:hover { background: var(--gold); }
+.key-enter:active { background: var(--gold-dim); }
+
 .ledger {
     margin-top: 28px;
     padding-top: 20px;
@@ -255,4 +307,9 @@ label {
     .ledger { flex-wrap: wrap; gap: 12px 0; }
  
     .stat-value { font-size: 20px; }
+
+    .kb-row { gap: 4px; }
+    .kb-row-offset { padding: 0 8px; }
+    .key { max-width: 32px; font-size: 13px; }
+    .key-wide { max-width: 48px; font-size: 14px; }
 }

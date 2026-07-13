@@ -1,30 +1,30 @@
 // --- Word bank: mixed difficulty for MVP testing ---
 const words = [
-    { word: "friend", difficulty: "easy" },
-    { word: "garden", difficulty: "easy" },
-    { word: "purple", difficulty: "easy" },
-    { word: "jungle", difficulty: "easy" },
-    { word: "pencil", difficulty: "easy" },
-    { word: "whisper", difficulty: "easy" },
-    { word: "necessary", difficulty: "medium" },
-    { word: "occurred", difficulty: "medium" },
-    { word: "definitely", difficulty: "medium" },
-    { word: "business", difficulty: "medium" },
-    { word: "vacuum", difficulty: "medium" },
-    { word: "separate", difficulty: "medium" },
-    { word: "rhythm", difficulty: "hard" },
-    { word: "bureaucrat", difficulty: "hard" },
-    { word: "conscientious", difficulty: "hard" },
-    { word: "silhouette", difficulty: "hard" },
-    { word: "mnemonic", difficulty: "hard" },
-    { word: "questionnaire", difficulty: "hard" }
+  { word: "friend", difficulty: "easy" },
+  { word: "garden", difficulty: "easy" },
+  { word: "purple", difficulty: "easy" },
+  { word: "jungle", difficulty: "easy" },
+  { word: "pencil", difficulty: "easy" },
+  { word: "whisper", difficulty: "easy" },
+  { word: "necessary", difficulty: "medium" },
+  { word: "occurred", difficulty: "medium" },
+  { word: "definitely", difficulty: "medium" },
+  { word: "business", difficulty: "medium" },
+  { word: "vacuum", difficulty: "medium" },
+  { word: "separate", difficulty: "medium" },
+  { word: "rhythm", difficulty: "hard" },
+  { word: "bureaucrat", difficulty: "hard" },
+  { word: "conscientious", difficulty: "hard" },
+  { word: "silhouette", difficulty: "hard" },
+  { word: "mnemonic", difficulty: "hard" },
+  { word: "questionnaire", difficulty: "hard" }
 ];
  
 // --- App state ---
 const state = {
-    currentWord: null,
-    correctCount: 0,
-    totalAttempted: 0
+  currentWord: null,
+  correctCount: 0,
+  totalAttempted: 0
 };
  
 // --- Elements ---
@@ -42,15 +42,15 @@ const statPct = document.getElementById('stat-pct');
 let preferredVoice = null;
  
 function pickBestVoice() {
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices.length) return;
- 
-    preferredVoice =
-      voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) ||
-      voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
-      voices.find(v => v.lang === 'en-US') ||
-      voices.find(v => v.lang.startsWith('en')) ||
-      voices[0];
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return;
+
+  preferredVoice =
+    voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) ||
+    voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
+    voices.find(v => v.lang === 'en-US') ||
+    voices.find(v => v.lang.startsWith('en')) ||
+    voices[0];
 }
  
 // Voices load asynchronously in some browsers (notably Chrome) —
@@ -68,52 +68,52 @@ function pickWord() {
  
 // --- Play word aloud ---
 function playWord() {
-    if (!state.currentWord) return;
-    const utterance = new SpeechSynthesisUtterance(state.currentWord);
-    utterance.rate = 0.8;
-    utterance.lang = 'en-US';
-    if (preferredVoice) utterance.voice = preferredVoice;
-    utterance.onstart = () => wave.classList.add('playing');
-    utterance.onend = () => wave.classList.remove('playing');
-    utterance.onerror = () => wave.classList.remove('playing');
-    window.speechSynthesis.cancel(); // avoid overlapping calls
-    window.speechSynthesis.speak(utterance);
+  if (!state.currentWord) return;
+  const utterance = new SpeechSynthesisUtterance(state.currentWord);
+  utterance.rate = 0.8;
+  utterance.lang = 'en-US';
+  if (preferredVoice) utterance.voice = preferredVoice;
+  utterance.onstart = () => wave.classList.add('playing');
+  utterance.onend = () => wave.classList.remove('playing');
+  utterance.onerror = () => wave.classList.remove('playing');
+  window.speechSynthesis.cancel(); // avoid overlapping calls
+  window.speechSynthesis.speak(utterance);
 }
  
 playBtn.addEventListener('click', playWord);
  
 // --- Handle submission ---
 function handleSubmit() {
-    const attempt = input.value.trim().toLowerCase();
-    if (!attempt) return;
- 
-    const correctWord = state.currentWord.toLowerCase();
-    const isCorrect = attempt === correctWord;
- 
-    state.totalAttempted++;
-    input.classList.remove('correct', 'incorrect');
- 
-    if (isCorrect) {
-      state.correctCount++;
-      feedback.textContent = `Correct — "${state.currentWord}" is spelled right.`;
-      feedback.className = 'feedback correct';
-      input.classList.add('correct');
-      updateStats();
- 
-      setTimeout(() => {
-        input.value = '';
-        input.classList.remove('correct');
-        feedback.textContent = '';
-        pickWord();
-        input.focus();
-      }, 1100);
-    } else {
-      feedback.textContent = `Not quite — give it another try.`;
-      feedback.className = 'feedback incorrect';
-      input.classList.add('incorrect');
-      updateStats();
-      input.select();
-    }
+  const attempt = input.value.trim().toLowerCase();
+  if (!attempt) return;
+
+  const correctWord = state.currentWord.toLowerCase();
+  const isCorrect = attempt === correctWord;
+
+  state.totalAttempted++;
+  input.classList.remove('correct', 'incorrect');
+
+  if (isCorrect) {
+    state.correctCount++;
+    feedback.textContent = `Correct — "${state.currentWord}" is spelled right.`;
+    feedback.className = 'feedback correct';
+    input.classList.add('correct');
+    updateStats();
+
+    setTimeout(() => {
+      input.value = '';
+      input.classList.remove('correct');
+      feedback.textContent = '';
+      pickWord();
+      input.focus();
+    }, 1100);
+  } else {
+    feedback.textContent = `Not quite — give it another try.`;
+    feedback.className = 'feedback incorrect';
+    input.classList.add('incorrect');
+    updateStats();
+    input.select();
+  }
 }
  
 document.getElementById('submit-btn').addEventListener('click', handleSubmit);
@@ -126,15 +126,50 @@ input.addEventListener('keydown', (e) => {
 });
  
 form.addEventListener('submit', (e) => e.preventDefault());
+
+// --- Custom on-screen keyboard (avoids native mobile keyboard + autocorrect) ---
+document.querySelectorAll('.key[data-key]').forEach(key => {
+  key.addEventListener('click', () => {
+    input.value += key.dataset.key;
+    input.classList.remove('correct', 'incorrect');
+    feedback.textContent = '';
+    feedback.className = 'feedback';
+  });
+});
+ 
+document.getElementById('kb-backspace').addEventListener('click', () => {
+  input.value = input.value.slice(0, -1);
+});
+ 
+document.getElementById('kb-enter').addEventListener('click', handleSubmit);
+ 
+// Physical keyboard still works too (handy on desktop) — the input is
+// readonly to block the native mobile keyboard, but we intercept real
+// key presses here and apply them the same way as on-screen taps.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    handleSubmit();
+  } else if (e.key === 'Backspace') {
+    e.preventDefault();
+    input.value = input.value.slice(0, -1);
+  } else if (/^[a-zA-Z]$/.test(e.key)) {
+    e.preventDefault();
+    input.value += e.key.toLowerCase();
+    input.classList.remove('correct', 'incorrect');
+    feedback.textContent = '';
+    feedback.className = 'feedback';
+  }
+});
  
 // --- Update score display ---
 function updateStats() {
-    statCorrect.textContent = state.correctCount;
-    statTotal.textContent = state.totalAttempted;
-    const pct = state.totalAttempted === 0
-      ? 0
-      : Math.round((state.correctCount / state.totalAttempted) * 100);
-    statPct.textContent = `${pct}%`;
+  statCorrect.textContent = state.correctCount;
+  statTotal.textContent = state.totalAttempted;
+  const pct = state.totalAttempted === 0
+    ? 0
+    : Math.round((state.correctCount / state.totalAttempted) * 100);
+  statPct.textContent = `${pct}%`;
 }
  
 // --- Init ---
