@@ -218,7 +218,8 @@ label {
  
 .key {
     flex: 1;
-    max-width: 40px;
+    min-width: 0;
+    padding: 0;
     height: 44px;
     border: none;
     border-radius: 4px;
@@ -237,7 +238,7 @@ label {
  
 .key-wide {
     flex: 1.6;
-    max-width: 64px;
+    min-width: 0;
     font-size: 16px;
     background: var(--ink);
     color: var(--parchment);
@@ -310,6 +311,6 @@ label {
 
     .kb-row { gap: 4px; }
     .kb-row-offset { padding: 0 8px; }
-    .key { max-width: 32px; font-size: 13px; }
-    .key-wide { max-width: 48px; font-size: 14px; }
+    .key { font-size: 13px; }
+    .key-wide { font-size: 14px; }
 }
