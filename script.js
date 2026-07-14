@@ -108,7 +108,7 @@ const words = [
 ];
 
 // --- App state ---
-const MAX_TRIES = 5;
+const MAX_TRIES = 2;
 
 const state = {
   currentWord: null,
@@ -229,7 +229,7 @@ function handleSubmit() {
       feedback.textContent = '';
       pickWord();
       input.focus();
-    }, 1600);
+    }, 5000);
   }
 }
 
