@@ -6,10 +6,15 @@ Features
 
 
 Audio playback — words are read aloud using the Web Speech API (SpeechSynthesis), no audio files or backend required
+
 Custom on-screen keyboard — a QWERTY layout built from scratch, used instead of the device's native keyboard
+
 5 tries per word — a live counter shows tries remaining; running out reveals the word and moves on automatically
+
 Score tracking — correct count, words played, and accuracy percentage, calculated per word (not per keystroke)
+
 Responsive design — tested and tuned for both desktop and mobile screens
+
 100-word bank — tiered across easy, medium, and hard difficulty
 
 
