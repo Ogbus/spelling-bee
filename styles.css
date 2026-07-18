@@ -44,6 +44,25 @@ body {
     height: 6px;
     background: linear-gradient(90deg, var(--gold-dim), var(--gold), var(--gold-dim));
 }
+
+.sound-toggle {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: none;
+  color: var(--ink);
+  opacity: 0.45;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.sound-toggle:hover { opacity: 0.8; background: rgba(28,35,33,0.06); }
+.sound-toggle svg { width: 100%; height: 100%; }
  
 .eyebrow {
     font-family: 'IBM Plex Mono', monospace;

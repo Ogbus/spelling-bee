@@ -408,6 +408,68 @@ function renderHistory() {
   });
 }
 
+// --- Sound effects (generated tones via Web Audio API, no audio files needed) ---
+const SOUND_KEY = 'spellit-sound-enabled';
+let soundEnabled = true;
+let audioCtx = null;
+
+function loadSoundPref() {
+  try {
+    const saved = localStorage.getItem(SOUND_KEY);
+    soundEnabled = saved === null ? true : saved === 'true';
+  } catch (err) {
+    soundEnabled = true;
+  }
+}
+
+function saveSoundPref() {
+  try {
+    localStorage.setItem(SOUND_KEY, String(soundEnabled));
+  } catch (err) {
+    console.warn('Spell It: could not save sound preference.', err);
+  }
+}
+
+function getAudioContext() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+
+function playTone(freq, startOffset, duration, type = 'sine', peakGain = 0.15) {
+  const ctx = getAudioContext();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+
+  const startTime = ctx.currentTime + startOffset;
+  gain.gain.setValueAtTime(0, startTime);
+  gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.02);
+  gain.gain.linearRampToValueAtTime(0, startTime + duration);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + duration + 0.02);
+}
+
+function playCorrectSound() {
+  if (!soundEnabled) return;
+  // Ascending arpeggio (C5-E5-G5) landing on a bright two-note "sparkle" chord (C6+E6)
+  playTone(523.25, 0.00, 0.11, 'triangle', 0.13);  // C5
+  playTone(659.25, 0.08, 0.11, 'triangle', 0.13);  // E5
+  playTone(783.99, 0.16, 0.11, 'triangle', 0.13);  // G5
+  playTone(1046.50, 0.25, 0.32, 'triangle', 0.16); // C6 — climax note, held longer & louder
+  playTone(1318.51, 0.25, 0.32, 'sine', 0.09);      // E6 — layered harmony for sparkle
+}
+
+function playIncorrectSound() {
+  if (!soundEnabled) return;
+  playTone(220, 0, 0.22, 'sine', 0.1); // A3
+}
+
 // --- Elements ---
 const playBtn = document.getElementById('play-btn');
 const wave = document.getElementById('wave');
@@ -483,6 +545,7 @@ function handleSubmit() {
     feedback.className = 'feedback correct';
     input.classList.add('correct');
     updateStats();
+    playCorrectSound();
 
     setTimeout(() => {
       input.value = '';
@@ -497,6 +560,7 @@ function handleSubmit() {
   // Incorrect attempt
   state.triesLeft--;
   input.classList.add('incorrect');
+  playIncorrectSound
 
   if (state.triesLeft > 0) {
     feedback.textContent = `Not quite — ${state.triesLeft} ${state.triesLeft === 1 ? 'try' : 'tries'} left.`;
@@ -629,7 +693,26 @@ historyOverlay.addEventListener('click', (e) => {
   if (e.target === historyOverlay) historyOverlay.classList.remove('visible');
 });
 
+// --- Sound mute toggle ---
+const soundToggleBtn = document.getElementById('sound-toggle');
+const soundIconOn = document.getElementById('sound-icon-on');
+const soundIconOff = document.getElementById('sound-icon-off');
+
+function updateSoundIcon() {
+  soundIconOn.style.display = soundEnabled ? 'block' : 'none';
+  soundIconOff.style.display = soundEnabled ? 'none' : 'block';
+}
+
+soundToggleBtn.addEventListener('click', () => {
+  soundEnabled = !soundEnabled;
+  saveSoundPref();
+  updateSoundIcon();
+  if (soundEnabled) playCorrectSound(); // quick audible confirmation that sound is back on
+});
+
 // --- Init ---
+loadSoundPref();
+updateSoundIcon();
 loadStats();
 updateStats();
 pickWord();
