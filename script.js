@@ -317,6 +317,97 @@ const state = {
   triesLeft: MAX_TRIES
 };
 
+// --- Score persistence (localStorage) ---
+const STORAGE_KEY = 'spellit-stats';
+
+function loadStats() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    const parsed = JSON.parse(saved);
+    if (typeof parsed.correctCount === 'number' && typeof parsed.wordsPlayed === 'number') {
+      state.correctCount = parsed.correctCount;
+      state.wordsPlayed = parsed.wordsPlayed;
+    }
+  } catch (err) {
+    // localStorage unavailable (private browsing, disabled, etc.) — fall back to in-memory only
+    console.warn('Spell It: could not load saved stats.', err);
+  }
+}
+
+function saveStats() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      correctCount: state.correctCount,
+      wordsPlayed: state.wordsPlayed
+    }));
+  } catch (err) {
+    console.warn('Spell It: could not save stats.', err);
+  }
+}
+
+ // --- Session history (saved snapshots, taken each time progress is reset) ---
+const HISTORY_KEY = 'spellit-history';
+const MAX_HISTORY_ENTRIES = 50;
+
+function loadHistory() {
+  try {
+    const saved = localStorage.getItem(HISTORY_KEY);
+    const parsed = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.warn('Spell It: could not load history.', err);
+    return [];
+  }
+}
+
+function saveSessionSnapshot() {
+  if (state.wordsPlayed === 0) return; // skip empty sessions
+
+  try {
+    const history = loadHistory();
+    const pct = Math.round((state.correctCount / state.wordsPlayed) * 100);
+    history.unshift({
+      date: new Date().toISOString(),
+      correctCount: state.correctCount,
+      wordsPlayed: state.wordsPlayed,
+      pct
+    });
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY_ENTRIES)));
+  } catch (err) {
+    console.warn('Spell It: could not save session snapshot.', err);
+  }
+}
+
+function renderHistory() {
+  const history = loadHistory();
+  const emptyMsg = document.getElementById('history-empty');
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+
+  if (history.length === 0) {
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  history.forEach(entry => {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    const dateLabel = new Date(entry.date).toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+    item.innerHTML = `
+      <span class="history-date">${dateLabel}</span>
+      <span class="history-figures">
+        <span class="history-raw">${entry.correctCount}/${entry.wordsPlayed}</span>
+        <span class="history-pct">${entry.pct}%</span>
+      </span>
+    `;
+    list.appendChild(item);
+  });
+}
+
 // --- Elements ---
 const playBtn = document.getElementById('play-btn');
 const wave = document.getElementById('wave');
@@ -485,7 +576,60 @@ function updateStats() {
     ? 0
     : Math.round((state.correctCount / state.wordsPlayed) * 100);
   statPct.textContent = `${pct}%`;
+
+  saveStats();
 }
 
+// --- Reset progress ---
+const modalOverlay = document.getElementById('modal-overlay');
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  modalOverlay.classList.add('visible');
+});
+
+document.getElementById('modal-cancel').addEventListener('click', () => {
+  modalOverlay.classList.remove('visible');
+});
+
+// Clicking the dark backdrop (outside the modal box) also cancels
+modalOverlay.addEventListener('click', (e) => {
+  if (e.target === modalOverlay) modalOverlay.classList.remove('visible');
+});
+
+document.getElementById('modal-confirm').addEventListener('click', () => {
+  modalOverlay.classList.remove('visible');
+  saveSessionSnapshot();
+
+  state.correctCount = 0;
+  state.wordsPlayed = 0;
+  updateStats(); // also re-saves the cleared stats to localStorage
+
+  input.value = '';
+  input.classList.remove('correct', 'incorrect');
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+
+  pickWord();
+  input.focus();
+});
+
+// --- View history panel ---
+const historyOverlay = document.getElementById('history-overlay');
+
+document.getElementById('history-btn').addEventListener('click', () => {
+  renderHistory();
+  historyOverlay.classList.add('visible');
+});
+
+document.getElementById('history-close').addEventListener('click', () => {
+  historyOverlay.classList.remove('visible');
+});
+
+historyOverlay.addEventListener('click', (e) => {
+  if (e.target === historyOverlay) historyOverlay.classList.remove('visible');
+});
+
 // --- Init ---
+loadStats();
+updateStats();
 pickWord();

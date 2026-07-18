@@ -58,14 +58,23 @@ Once a tries-limit was introduced, the original scoring approach (incrementing a
 
 Fix: Refactored scoring to track outcomes per word rather than per submission. A word only counts toward wordsPlayed once it's resolved — either spelled correctly, or missed after all tries are exhausted. Accuracy is calculated as correctCount / wordsPlayed.
 
-Deferred / Future Features
+6. Scaling the word bank without manual errors
+
+Growing the word list from 18 → 100 → 300 words by hand risked duplicate entries and miscounted difficulty tiers as the list got larger.
+
+Fix: For the 300-word expansion, the word list was generated and validated programmatically (deduplicated within and across difficulty tiers, exact tier counts verified) before being inserted into the app, rather than manually counted and typed.
+
+7. Native confirm() dialog breaking visual consistency
+
+The initial reset confirmation used the browser's native confirm() popup, which looks and feels inconsistent with the rest of the app's custom-styled interface.
+
+Fix: Replaced it with an in-app modal (overlay + dialog box) styled to match the app's existing parchment/ink/gold theme, with dedicated Cancel and Reset buttons and backdrop-click-to-dismiss behavior.
+
+8. Resetting progress meant losing it permanently
+
+The original reset button simply zeroed out all stats, which meant a user couldn't track improvement across sessions over time.
+
+Fix: Reset now saves a snapshot of the current session (date, correct count, words played, accuracy) to a localStorage-backed history log before clearing anything. A "View history" panel — reusing the same in-app modal pattern built for the reset confirmation — lets users review past sessions and see their progress over time.
 
 
-localStorage persistence — currently all progress resets on page refresh; persisting score and word history is planned for a later pass
-Additional user stories beyond the initial MVP set (to be documented as they're implemented)
-Possible difficulty-tier progression, using the difficulty tags already present in the word bank
 
-
-Development Philosophy
-
-Consistent with other projects in this portfolio (e.g. Mindpage), Spell It favors a single-file, dependency-free build — prioritizing simplicity and portability over framework overhead.
