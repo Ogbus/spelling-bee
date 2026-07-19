@@ -361,37 +361,59 @@ function loadHistory() {
   }
 }
 
-function saveSessionSnapshot() {
-  if (state.wordsPlayed === 0) return; // skip empty sessions
-
+function saveHistory(history) {
   try {
-    const history = loadHistory();
-    const pct = Math.round((state.correctCount / state.wordsPlayed) * 100);
-    history.unshift({
-      date: new Date().toISOString(),
-      correctCount: state.correctCount,
-      wordsPlayed: state.wordsPlayed,
-      pct
-    });
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY_ENTRIES)));
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
   } catch (err) {
-    console.warn('Spell It: could not save session snapshot.', err);
+    console.warn('Spell It: could not save history.', err);
   }
+}
+
+function saveSessionSnapshot() {
+  if (state.wordsPlayed === 0) return;
+
+  const history = loadHistory();
+  const pct = Math.round((state.correctCount / state.wordsPlayed) * 100);
+  history.unshift({
+    date: new Date().toISOString(),
+    correctCount: state.correctCount,
+    wordsPlayed: state.wordsPlayed,
+    pct
+  });
+  saveHistory(history.slice(0, MAX_HISTORY_ENTRIES));
+}
+
+function deleteHistoryEntry(index) {
+  const history = loadHistory();
+  history.splice(index, 1);
+  saveHistory(history);
+  renderHistory();
+}
+
+function clearAllHistory() {
+  saveHistory([]);
+  renderHistory();
 }
 
 function renderHistory() {
   const history = loadHistory();
   const emptyMsg = document.getElementById('history-empty');
   const list = document.getElementById('history-list');
+  const clearAllRow = document.getElementById('clear-all-row');
+  const clearConfirmRow = document.getElementById('clear-confirm-row');
+
   list.innerHTML = '';
+  clearConfirmRow.classList.remove('visible');
 
   if (history.length === 0) {
     emptyMsg.style.display = 'block';
+    clearAllRow.style.display = 'none';
     return;
   }
   emptyMsg.style.display = 'none';
+  clearAllRow.style.display = 'flex';
 
-  history.forEach(entry => {
+  history.forEach((entry, index) => {
     const item = document.createElement('div');
     item.className = 'history-item';
     const dateLabel = new Date(entry.date).toLocaleDateString(undefined, {
@@ -402,6 +424,7 @@ function renderHistory() {
       <span class="history-figures">
         <span class="history-raw">${entry.correctCount}/${entry.wordsPlayed}</span>
         <span class="history-pct">${entry.pct}%</span>
+        <button class="history-item-delete" data-index="${index}" type="button" aria-label="Delete this session">×</button>
       </span>
     `;
     list.appendChild(item);
@@ -691,6 +714,26 @@ document.getElementById('history-close').addEventListener('click', () => {
 
 historyOverlay.addEventListener('click', (e) => {
   if (e.target === historyOverlay) historyOverlay.classList.remove('visible');
+});
+
+document.getElementById('history-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('.history-item-delete');
+  if (!btn) return;
+  deleteHistoryEntry(Number(btn.dataset.index));
+});
+
+const clearConfirmRow = document.getElementById('clear-confirm-row');
+
+document.getElementById('clear-all-btn').addEventListener('click', () => {
+  clearConfirmRow.classList.add('visible');
+});
+
+document.getElementById('clear-cancel').addEventListener('click', () => {
+  clearConfirmRow.classList.remove('visible');
+});
+
+document.getElementById('clear-confirm').addEventListener('click', () => {
+  clearAllHistory();
 });
 
 // --- Sound mute toggle ---

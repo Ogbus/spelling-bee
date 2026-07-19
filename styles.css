@@ -396,6 +396,79 @@ label {
   font-size: 11px;
 }
 
+.history-item-delete {
+  background: none;
+  border: none;
+  color: var(--ink);
+  opacity: 0.35;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  margin-left: 4px;
+  border-radius: 3px;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.history-item-delete:hover {
+  opacity: 1;
+  color: var(--incorrect);
+}
+
+.clear-all-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.clear-all-btn {
+  background: none;
+  border: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--incorrect);
+  opacity: 0.6;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 4px 8px;
+  transition: opacity 0.15s ease;
+}
+
+.clear-all-btn:hover { opacity: 1; }
+
+.clear-confirm-row {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(181, 75, 58, 0.08);
+  border: 1px solid rgba(181, 75, 58, 0.25);
+  border-radius: 3px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.clear-confirm-row.visible { display: flex; }
+
+.clear-confirm-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.clear-confirm-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.clear-confirm-actions .modal-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
