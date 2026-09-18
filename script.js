@@ -317,6 +317,283 @@ const state = {
   triesLeft: MAX_TRIES
 };
 
+let resolving = false; // true while waiting to advance to the next word
+
+// --- Daily Word + Streak ---
+const DAILY_KEY = 'spellit-daily';
+const STREAK_KEY = 'spellit-streak';
+const MODE_KEY = 'spellit-mode';
+
+let mode = 'practice'; // 'practice' | 'daily'
+
+const dailyState = {
+  date: null,
+  word: null,
+  completed: false,
+  correct: false,
+  triesLeft: MAX_TRIES
+};
+
+const dailyStreak = {
+  current: 0,
+  best: 0,
+  lastPlayedDate: null
+};
+
+// Local (not UTC) date, so the daily word rolls over at local midnight.
+function localDateStr(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function addDays(dateStr, days) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return localDateStr(new Date(y, m - 1, d + days));
+}
+
+function isYesterday(dateStr) {
+  return dateStr === addDays(localDateStr(), -1);
+}
+
+// Deterministic per day, stable across devices and reloads — no backend needed.
+function djb2(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  }
+  return h;
+}
+
+function dailyWordFor(dateStr) {
+  let idx = djb2(dateStr) % words.length;
+  const prevIdx = djb2(addDays(dateStr, -1)) % words.length;
+  if (idx === prevIdx) idx = (idx + 1) % words.length; // avoid back-to-back repeats
+  return words[idx].word;
+}
+
+function loadDaily() {
+  try {
+    const saved = localStorage.getItem(DAILY_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch (err) {
+    console.warn('Spell It: could not load daily word.', err);
+    return null;
+  }
+}
+
+function saveDaily() {
+  try {
+    localStorage.setItem(DAILY_KEY, JSON.stringify({
+      date: dailyState.date,
+      word: dailyState.word,
+      completed: dailyState.completed,
+      correct: dailyState.correct
+    }));
+  } catch (err) {
+    console.warn('Spell It: could not save daily word.', err);
+  }
+}
+
+function loadStreak() {
+  try {
+    const saved = localStorage.getItem(STREAK_KEY);
+    if (!saved) return;
+    const parsed = JSON.parse(saved);
+    if (typeof parsed.current === 'number' && typeof parsed.best === 'number') {
+      dailyStreak.current = parsed.current;
+      dailyStreak.best = parsed.best;
+      dailyStreak.lastPlayedDate = parsed.lastPlayedDate || null;
+    }
+  } catch (err) {
+    console.warn('Spell It: could not load streak.', err);
+  }
+}
+
+function saveStreak() {
+  try {
+    localStorage.setItem(STREAK_KEY, JSON.stringify({
+      current: dailyStreak.current,
+      best: dailyStreak.best,
+      lastPlayedDate: dailyStreak.lastPlayedDate
+    }));
+  } catch (err) {
+    console.warn('Spell It: could not save streak.', err);
+  }
+}
+
+function loadMode() {
+  try {
+    const saved = localStorage.getItem(MODE_KEY);
+    if (saved === 'daily') mode = 'daily';
+  } catch (err) { /* ignore */ }
+}
+
+// A streak only lives if you played today or yesterday — otherwise it's dead.
+function streakAliveToday() {
+  const today = localDateStr();
+  return dailyStreak.lastPlayedDate === today || dailyStreak.lastPlayedDate === addDays(today, -1);
+}
+
+function initDaily() {
+  const today = localDateStr();
+  const saved = loadDaily();
+
+  if (saved && saved.date === today && typeof saved.word === 'string') {
+    dailyState.date = saved.date;
+    dailyState.word = saved.word;
+    dailyState.completed = Boolean(saved.completed);
+    dailyState.correct = Boolean(saved.correct);
+  } else {
+    // New day (or first visit): roll today's word.
+    dailyState.date = today;
+    dailyState.word = dailyWordFor(today);
+    dailyState.completed = false;
+    dailyState.correct = false;
+    saveDaily();
+  }
+
+  dailyState.triesLeft = dailyState.completed ? 0 : MAX_TRIES;
+
+  loadStreak();
+  if (!streakAliveToday()) dailyStreak.current = 0; // display "dead" streak as 0
+}
+
+function resolveDaily(correct) {
+  const today = localDateStr();
+  dailyState.completed = true;
+  dailyState.correct = correct;
+  dailyState.triesLeft = 0;
+  saveDaily();
+
+  if (correct) {
+    dailyStreak.current = isYesterday(dailyStreak.lastPlayedDate) ? dailyStreak.current + 1 : 1;
+    dailyStreak.best = Math.max(dailyStreak.best, dailyStreak.current);
+  } else {
+    dailyStreak.current = 0; // a miss breaks the streak immediately
+  }
+  dailyStreak.lastPlayedDate = today;
+  saveStreak();
+}
+
+function renderDaily() {
+  const today = localDateStr();
+  const dayLabel = document.getElementById('daily-day');
+  const streakLabel = document.getElementById('daily-streak');
+  const msg = document.getElementById('daily-msg');
+  const doneCard = document.getElementById('daily-done');
+  const doneTitle = document.getElementById('daily-done-title');
+  const doneBody = document.getElementById('daily-done-body');
+  const interaction = document.getElementById('interaction');
+
+  const alive = streakAliveToday();
+  streakLabel.textContent = alive && dailyStreak.current > 0
+    ? `${dailyStreak.current} 🔥 · best ${dailyStreak.best}`
+    : `No streak${dailyStreak.best > 0 ? ` · best ${dailyStreak.best}` : ''}`;
+
+  if (!dailyState.completed) {
+    interaction.hidden = false;
+    doneCard.hidden = true;
+    if (isYesterday(dailyStreak.lastPlayedDate) && dailyStreak.current > 0) {
+      msg.textContent = 'Play today to keep your streak alive.';
+    } else if (dailyStreak.current > 0) {
+      msg.textContent = 'Spell it correctly to keep the streak going.';
+    } else {
+      msg.textContent = 'Spell today\'s word correctly to start a streak.';
+    }
+    updateTriesDisplay();
+  } else {
+    interaction.hidden = true;
+    doneCard.hidden = false;
+    if (dailyState.correct) {
+      doneTitle.textContent = 'Correct — nice work!';
+      doneBody.textContent = `You spelled “${dailyState.word}” right. Streak: ${dailyStreak.current} 🔥 (best ${dailyStreak.best}).`;
+    } else {
+      doneTitle.textContent = 'Out of tries';
+      doneBody.textContent = `The word was “${dailyState.word}”. A miss breaks the streak — best is still ${dailyStreak.best}.`;
+    }
+  }
+}
+
+function handleDailySubmit() {
+  if (dailyState.completed) return;
+
+  const attempt = input.value.trim().toLowerCase();
+  if (!attempt) return;
+
+  input.classList.remove('correct', 'incorrect');
+
+  if (attempt === dailyState.word) {
+    resolveDaily(true);
+    input.classList.add('correct');
+    feedback.textContent = `Correct — “${dailyState.word}” is spelled right.`;
+    feedback.className = 'feedback correct';
+    playCorrectSound();
+  } else {
+    dailyState.triesLeft--;
+    input.classList.add('incorrect');
+    playIncorrectSound();
+    if (dailyState.triesLeft > 0) {
+      feedback.textContent = `Not quite — ${dailyState.triesLeft} ${dailyState.triesLeft === 1 ? 'try' : 'tries'} left.`;
+      feedback.className = 'feedback incorrect';
+    } else {
+      resolveDaily(false);
+      feedback.textContent = `Out of tries — the word was “${dailyState.word}”.`;
+      feedback.className = 'feedback incorrect';
+    }
+  }
+  updateTriesDisplay();
+  renderDaily();
+}
+
+function setMode(next) {
+  mode = next;
+  saveMode();
+  document.body.classList.toggle('mode-daily', mode === 'daily');
+
+  document.getElementById('mode-practice').classList.toggle('active', mode === 'practice');
+  document.getElementById('mode-practice').setAttribute('aria-pressed', String(mode === 'practice'));
+  document.getElementById('mode-daily').classList.toggle('active', mode === 'daily');
+  document.getElementById('mode-daily').setAttribute('aria-pressed', String(mode === 'daily'));
+
+  document.getElementById('daily-panel').hidden = mode !== 'daily';
+
+  // Reset the shared interaction input whenever switching modes.
+  if (input) {
+    input.value = '';
+    input.classList.remove('correct', 'incorrect');
+  }
+  if (feedback) {
+    feedback.textContent = '';
+    feedback.className = 'feedback';
+  }
+
+  if (mode === 'daily') {
+    renderDaily();
+  } else {
+    document.getElementById('interaction').hidden = false;
+    document.getElementById('daily-done').hidden = true;
+    updateTriesDisplay();
+  }
+  if (input) input.focus();
+}
+
+function saveMode() {
+  try {
+    localStorage.setItem(MODE_KEY, mode);
+  } catch (err) { /* ignore */ }
+}
+
+document.getElementById('mode-practice').addEventListener('click', () => setMode('practice'));
+document.getElementById('mode-daily').addEventListener('click', () => setMode('daily'));
+
+// Roll over at local midnight (no reload needed) while in daily mode.
+setInterval(() => {
+  if (mode !== 'daily') return;
+  if (dailyState.date !== localDateStr()) {
+    initDaily();
+    renderDaily();
+  }
+}, 60000);
+
 // --- Score persistence (localStorage) ---
 const STORAGE_KEY = 'spellit-stats';
 
@@ -537,8 +814,9 @@ function pickWord() {
 
 // --- Play word aloud ---
 function playWord() {
-  if (!state.currentWord) return;
-  const utterance = new SpeechSynthesisUtterance(state.currentWord);
+  const word = mode === 'daily' ? dailyState.word : state.currentWord;
+  if (!word) return;
+  const utterance = new SpeechSynthesisUtterance(word);
   utterance.rate = 0.8;
   utterance.lang = 'en-US';
   if (preferredVoice) utterance.voice = preferredVoice;
@@ -553,6 +831,13 @@ playBtn.addEventListener('click', playWord);
 
 // --- Handle submission ---
 function handleSubmit() {
+  if (mode === 'daily') {
+    handleDailySubmit();
+    return;
+  }
+
+  if (resolving) return;
+
   const attempt = input.value.trim().toLowerCase();
   if (!attempt) return;
 
@@ -564,6 +849,7 @@ function handleSubmit() {
   if (isCorrect) {
     state.correctCount++;
     state.wordsPlayed++;
+    resolving = true;
     feedback.textContent = `Correct — "${state.currentWord}" is spelled right.`;
     feedback.className = 'feedback correct';
     input.classList.add('correct');
@@ -574,6 +860,7 @@ function handleSubmit() {
       input.value = '';
       input.classList.remove('correct');
       feedback.textContent = '';
+      resolving = false;
       pickWord();
       input.focus();
     }, 5000);
@@ -583,7 +870,7 @@ function handleSubmit() {
   // Incorrect attempt
   state.triesLeft--;
   input.classList.add('incorrect');
-  playIncorrectSound
+  playIncorrectSound();
 
   if (state.triesLeft > 0) {
     feedback.textContent = `Not quite — ${state.triesLeft} ${state.triesLeft === 1 ? 'try' : 'tries'} left.`;
@@ -596,6 +883,7 @@ function handleSubmit() {
   } else {
     // Out of tries — mark as missed, reveal the word, move on
     state.wordsPlayed++;
+    resolving = true;
     feedback.textContent = `Out of tries — the word was "${state.currentWord}".`;
     feedback.className = 'feedback incorrect';
     updateStats();
@@ -605,6 +893,7 @@ function handleSubmit() {
       input.value = '';
       input.classList.remove('incorrect');
       feedback.textContent = '';
+      resolving = false;
       pickWord();
       input.focus();
     }, 5000);
@@ -613,7 +902,8 @@ function handleSubmit() {
 
 // --- Tries-remaining indicator ---
 function updateTriesDisplay() {
-  triesDisplay.textContent = `${state.triesLeft} / ${MAX_TRIES} tries left`;
+  const triesLeft = mode === 'daily' ? dailyState.triesLeft : state.triesLeft;
+  triesDisplay.textContent = `${triesLeft} / ${MAX_TRIES} tries left`;
 }
 
 document.getElementById('submit-btn').addEventListener('click', handleSubmit);
@@ -640,6 +930,8 @@ document.getElementById('kb-enter').addEventListener('click', handleSubmit);
 // readonly to block the native mobile keyboard, but we intercept real
 // key presses here and apply them the same way as on-screen taps.
 document.addEventListener('keydown', (e) => {
+  if (mode === 'daily' && dailyState.completed) return; // daily word already resolved
+
   if (e.key === 'Enter') {
     e.preventDefault();
     handleSubmit();
@@ -759,3 +1051,6 @@ updateSoundIcon();
 loadStats();
 updateStats();
 pickWord();
+initDaily();
+loadMode();
+setMode(mode);

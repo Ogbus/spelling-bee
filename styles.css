@@ -550,6 +550,121 @@ label {
 
 .modal-btn-confirm:hover { background: #9c3d30; }
 
+/* --- Mode toggle --- */
+.mode-toggle {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    background: var(--parchment-dim);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 4px;
+}
+
+.mode-btn {
+    flex: 1;
+    border: none;
+    background: none;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink);
+    opacity: 0.55;
+    padding: 8px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.mode-btn:hover { opacity: 0.85; background: rgba(28, 35, 33, 0.06); }
+
+.mode-btn.active {
+    background: #fffdf8;
+    color: var(--ink);
+    opacity: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* --- Daily word + streak panel --- */
+.daily-panel { margin-bottom: 20px; }
+
+.daily-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.daily-day {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--ink);
+}
+
+.daily-streak {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--gold-dim);
+    white-space: nowrap;
+}
+
+.daily-msg {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink);
+    opacity: 0.6;
+}
+
+/* In daily mode the practice ledger/footer are irrelevant — hide them */
+body.mode-daily .ledger,
+body.mode-daily .footer-actions { display: none; }
+
+.daily-done {
+    margin-top: 8px;
+    padding: 22px 20px;
+    border: 1px solid var(--gold);
+    border-left: 4px solid var(--gold);
+    background: #fffdf8;
+    border-radius: 3px;
+    text-align: center;
+}
+
+.daily-done-eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+    margin: 0 0 6px;
+}
+
+.daily-done-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--ink);
+    margin: 0 0 8px;
+}
+
+.daily-done-body {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink);
+    opacity: 0.7;
+    margin: 0 0 14px;
+}
+
+.daily-done-cta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--gold-dim);
+    margin: 0;
+}
+
 @media (max-width: 420px) {
     body { padding: 20px 12px; }
  

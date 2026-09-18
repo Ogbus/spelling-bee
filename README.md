@@ -9,13 +9,15 @@ Audio playback — words are read aloud using the Web Speech API (SpeechSynthesi
 
 Custom on-screen keyboard — a QWERTY layout built from scratch, used instead of the device's native keyboard
 
-5 tries per word — a live counter shows tries remaining; running out reveals the word and moves on automatically
+2 tries per word — a live counter shows tries remaining; running out reveals the word and moves on automatically
 
 Score tracking — correct count, words played, and accuracy percentage, calculated per word (not per keystroke)
 
 Responsive design — tested and tuned for both desktop and mobile screens
 
-100-word bank — tiered across easy, medium, and hard difficulty
+300-word bank — tiered across easy, medium, and hard difficulty
+
+Daily Word + Streak — one seeded word per day (deterministic by date, no backend), with a daily streak that grows if you spell the day's word correctly, resets otherwise, and preserves your best streak
 
 
 Tech Stack
@@ -75,6 +77,12 @@ Fix: Replaced it with an in-app modal (overlay + dialog box) styled to match the
 The original reset button simply zeroed out all stats, which meant a user couldn't track improvement across sessions over time.
 
 Fix: Reset now saves a snapshot of the current session (date, correct count, words played, accuracy) to a localStorage-backed history log before clearing anything. A "View history" panel — reusing the same in-app modal pattern built for the reset confirmation — lets users review past sessions and see their progress over time.
+
+9. Giving users a reason to return daily, without a backend
+
+The app is fully client-side, so there was no server to coordinate a shared "word of the day" or track returning visits.
+
+Fix: Added a Daily mode. The day's word is selected deterministically by hashing the local date (djb2) and indexing into the word bank, so it's stable per day and identical across devices with zero backend. A streak (localStorage-backed) increments when the daily word is spelled correctly, resets on a miss or a missed day, and preserves the best streak. The selected mode (practice/daily) is also persisted, and the app rolls over to a fresh word automatically at local midnight while open.
 
 
 
