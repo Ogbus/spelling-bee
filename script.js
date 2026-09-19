@@ -323,8 +323,10 @@ let resolving = false; // true while waiting to advance to the next word
 const DAILY_KEY = 'spellit-daily';
 const STREAK_KEY = 'spellit-streak';
 const MODE_KEY = 'spellit-mode';
+const DIFFICULTY_KEY = 'spellit-difficulty';
 
 let mode = 'practice'; // 'practice' | 'daily'
+let difficulty = 'all'; // 'all' | 'easy' | 'medium' | 'hard'
 
 const dailyState = {
   date: null,
@@ -427,6 +429,21 @@ function loadMode() {
   } catch (err) { /* ignore */ }
 }
 
+function loadDifficulty() {
+  try {
+    const saved = localStorage.getItem(DIFFICULTY_KEY);
+    if (saved === 'all' || saved === 'easy' || saved === 'medium' || saved === 'hard') {
+      difficulty = saved;
+    }
+  } catch (err) { /* ignore */ }
+}
+
+function saveDifficulty() {
+  try {
+    localStorage.setItem(DIFFICULTY_KEY, difficulty);
+  } catch (err) { /* ignore */ }
+}
+
 // A streak only lives if you played today or yesterday — otherwise it's dead.
 function streakAliveToday() {
   const today = localDateStr();
@@ -472,6 +489,8 @@ function resolveDaily(correct) {
   }
   dailyStreak.lastPlayedDate = today;
   saveStreak();
+
+  incrementGoal(); // the daily word is also one practiced word
 }
 
 function renderDaily() {
@@ -585,14 +604,170 @@ function saveMode() {
 document.getElementById('mode-practice').addEventListener('click', () => setMode('practice'));
 document.getElementById('mode-daily').addEventListener('click', () => setMode('daily'));
 
+function setDifficulty(next) {
+  difficulty = next;
+  saveDifficulty();
+  document.querySelectorAll('#difficulty-toggle .mode-btn').forEach(btn => {
+    const active = btn.dataset.difficulty === next;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+  pickWord();
+}
+
+document.querySelectorAll('#difficulty-toggle .mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => setDifficulty(btn.dataset.difficulty));
+});
+
 // Roll over at local midnight (no reload needed) while in daily mode.
 setInterval(() => {
-  if (mode !== 'daily') return;
-  if (dailyState.date !== localDateStr()) {
+  const today = localDateStr();
+  if (dailyState.date !== today) {
     initDaily();
-    renderDaily();
+    if (mode === 'daily') renderDaily();
   }
+  if (dailyGoal.date !== today) initGoal();
 }, 60000);
+
+// --- Daily goal (word-count, per local day) ---
+const GOAL_KEY = 'spellit-goal';
+
+const dailyGoal = {
+  date: null,
+  target: null, // null/0 = no goal set
+  progress: 0,
+  completed: false
+};
+
+function loadGoal() {
+  try {
+    const saved = localStorage.getItem(GOAL_KEY);
+    if (!saved) return;
+    const parsed = JSON.parse(saved);
+    if (typeof parsed.date === 'string' && typeof parsed.target === 'number') {
+      dailyGoal.date = parsed.date;
+      dailyGoal.target = parsed.target;
+      dailyGoal.progress = typeof parsed.progress === 'number' ? parsed.progress : 0;
+      dailyGoal.completed = Boolean(parsed.completed);
+    }
+  } catch (err) {
+    console.warn('Spell It: could not load goal.', err);
+  }
+}
+
+function saveGoal() {
+  try {
+    localStorage.setItem(GOAL_KEY, JSON.stringify(dailyGoal));
+  } catch (err) {
+    console.warn('Spell It: could not save goal.', err);
+  }
+}
+
+function initGoal() {
+  loadGoal();
+  const today = localDateStr();
+
+  // New day (or no stored goal): roll over today's progress.
+  if (dailyGoal.date !== today) {
+    dailyGoal.date = today;
+    dailyGoal.progress = 0;
+    dailyGoal.completed = false;
+    saveGoal();
+  }
+  renderGoal();
+}
+
+function setGoal(target) {
+  dailyGoal.date = localDateStr();
+  dailyGoal.target = target; // 0 = no goal
+  dailyGoal.progress = 0;
+  dailyGoal.completed = false;
+  saveGoal();
+  renderGoal();
+}
+
+// One resolved word — correct or missed — counts toward the goal.
+function incrementGoal() {
+  if (!dailyGoal.target) return;
+
+  const today = localDateStr();
+  if (dailyGoal.date !== today) initGoal();
+
+  dailyGoal.progress++;
+  if (!dailyGoal.completed && dailyGoal.progress >= dailyGoal.target) {
+    dailyGoal.completed = true;
+    playCorrectSound(); // goal reached — rewarding payoff
+  }
+  saveGoal();
+  renderGoal();
+}
+
+function resetGoalToday() {
+  if (!dailyGoal.target) return;
+  dailyGoal.date = localDateStr();
+  dailyGoal.progress = 0;
+  dailyGoal.completed = false;
+  saveGoal();
+  renderGoal();
+}
+
+function renderGoal() {
+  const headEl = document.getElementById('goal-head');
+  const trackEl = document.getElementById('goal-track');
+  const captionEl = document.getElementById('goal-caption');
+
+  if (!dailyGoal.target) {
+    headEl.innerHTML = `
+      <span class="goal-label">Daily goal</span>
+      <button type="button" class="goal-set-btn" id="goal-set-btn">Set goal</button>
+    `;
+    trackEl.innerHTML = '';
+    captionEl.textContent = 'Set a daily word goal to keep your practice consistent.';
+    document.getElementById('goal-set-btn').addEventListener('click', openGoalModal);
+    return;
+  }
+
+  const pct = dailyGoal.completed ? 100 : Math.min(100, Math.round((dailyGoal.progress / dailyGoal.target) * 100));
+  headEl.innerHTML = `
+    <span class="goal-label">Daily goal${dailyGoal.completed ? ' · met!' : ''}</span>
+    <span class="goal-count">${dailyGoal.progress}/${dailyGoal.target}</span>
+    <button type="button" class="goal-set-btn" id="goal-set-btn">Change</button>
+  `;
+  trackEl.innerHTML = `<div class="goal-fill${dailyGoal.completed ? ' complete' : ''}" style="width:${pct}%"></div>`;
+  captionEl.textContent = dailyGoal.completed
+    ? 'Goal met — set a higher one or call it a day.'
+    : `${dailyGoal.target - dailyGoal.progress} ${dailyGoal.target - dailyGoal.progress === 1 ? 'word' : 'words'} to go.`;
+  document.getElementById('goal-set-btn').addEventListener('click', openGoalModal);
+}
+
+const goalOverlay = document.getElementById('goal-overlay');
+
+function openGoalModal() {
+  document.querySelectorAll('.goal-option').forEach(opt => {
+    opt.classList.toggle('active', Number(opt.dataset.goal) === dailyGoal.target);
+  });
+  goalOverlay.classList.add('visible');
+}
+
+document.getElementById('goal-cancel').addEventListener('click', () => {
+  goalOverlay.classList.remove('visible');
+});
+
+document.getElementById('goal-none').addEventListener('click', () => {
+  setGoal(0);
+  goalOverlay.classList.remove('visible');
+});
+
+goalOverlay.addEventListener('click', (e) => {
+  if (e.target === goalOverlay) goalOverlay.classList.remove('visible');
+});
+
+document.querySelectorAll('.goal-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    setGoal(Number(opt.dataset.goal));
+    goalOverlay.classList.remove('visible');
+  });
+});
 
 // --- Score persistence (localStorage) ---
 const STORAGE_KEY = 'spellit-stats';
@@ -806,7 +981,9 @@ if ('onvoiceschanged' in window.speechSynthesis) {
 
 // --- Pick a new word ---
 function pickWord() {
-  const entry = words[Math.floor(Math.random() * words.length)];
+  const pool = difficulty === 'all' ? words : words.filter(w => w.difficulty === difficulty);
+  if (!pool.length) return; // no words match the selected difficulty (shouldn't happen)
+  const entry = pool[Math.floor(Math.random() * pool.length)];
   state.currentWord = entry.word;
   state.triesLeft = MAX_TRIES;
   updateTriesDisplay();
@@ -855,6 +1032,7 @@ function handleSubmit() {
     input.classList.add('correct');
     updateStats();
     playCorrectSound();
+    incrementGoal();
 
     setTimeout(() => {
       input.value = '';
@@ -888,6 +1066,7 @@ function handleSubmit() {
     feedback.className = 'feedback incorrect';
     updateStats();
     updateTriesDisplay();
+    incrementGoal();
 
     setTimeout(() => {
       input.value = '';
@@ -982,6 +1161,7 @@ document.getElementById('modal-confirm').addEventListener('click', () => {
   state.correctCount = 0;
   state.wordsPlayed = 0;
   updateStats(); // also re-saves the cleared stats to localStorage
+  resetGoalToday();
 
   input.value = '';
   input.classList.remove('correct', 'incorrect');
@@ -1050,7 +1230,9 @@ loadSoundPref();
 updateSoundIcon();
 loadStats();
 updateStats();
-pickWord();
+loadDifficulty();
+setDifficulty(difficulty);
 initDaily();
+initGoal();
 loadMode();
 setMode(mode);

@@ -19,6 +19,10 @@ Responsive design — tested and tuned for both desktop and mobile screens
 
 Daily Word + Streak — one seeded word per day (deterministic by date, no backend), with a daily streak that grows if you spell the day's word correctly, resets otherwise, and preserves your best streak
 
+Daily goal — a per-day word-count goal (5/10/20/30 words) with a progress bar; every resolved word counts (practice and the daily word), and reaching it locks in a satisfying "met" state
+
+Difficulty selector — pick the practice word pool from All/Easy/Medium/Hard (each tier holds 100 words), persisted across reloads; hidden in Daily mode since the daily word is date-seeded identically for everyone
+
 
 Tech Stack
 
@@ -83,6 +87,18 @@ Fix: Reset now saves a snapshot of the current session (date, correct count, wor
 The app is fully client-side, so there was no server to coordinate a shared "word of the day" or track returning visits.
 
 Fix: Added a Daily mode. The day's word is selected deterministically by hashing the local date (djb2) and indexing into the word bank, so it's stable per day and identical across devices with zero backend. A streak (localStorage-backed) increments when the daily word is spelled correctly, resets on a miss or a missed day, and preserves the best streak. The selected mode (practice/daily) is also persisted, and the app rolls over to a fresh word automatically at local midnight while open.
+
+10. Turning consistency into a tangible daily target
+
+A streak rewards returning, but offers no short-term target within a single sitting, making a session feel open-ended.
+
+Fix: Added a daily goal (5/10/20/30 words, or none) stored per-day in localStorage with a progress bar. Every resolved word — correct or missed, in practice or the daily round — counts toward it, so a partial day is never wasted (the wider definitions are "resolved" and "same day", both matching how the game already resolves words). Reaching the target flips the bar into a "met" state with a payoff sound. The goal rolls over at local midnight alongside the daily word, and "Reset progress" also resets the day's goal.
+
+11. Letting the word bank filter by difficulty without breaking the daily word
+
+The 300-word bank is tiered easy/medium/hard, but pickWord() drew from all of it, so a short practice session could serve only hard words. Filtering practice by difficulty was straightforward; the tricky part was that it must NOT apply to Daily mode — the daily word is seeded by date so it's identical across devices, and letting a per-device difficulty setting change it would break that guarantee.
+
+Fix: A four-way "All / Easy / Medium / Hard" toggle in Practice mode filters the pool in pickWord(); the selection is persisted to localStorage like the mode. The toggle is hidden in Daily mode via a body.mode-daily rule, so there's no way for a stale difficulty to leak into the seeded daily word.
 
 
 

@@ -21,6 +21,13 @@
             <button class="mode-btn active" id="mode-practice" type="button" aria-pressed="true">Practice</button>
             <button class="mode-btn" id="mode-daily" type="button" aria-pressed="false">Daily</button>
         </div>
+
+        <div class="difficulty-toggle" id="difficulty-toggle">
+            <button class="mode-btn active" data-difficulty="all" type="button" aria-pressed="true">All</button>
+            <button class="mode-btn" data-difficulty="easy" type="button" aria-pressed="false">Easy</button>
+            <button class="mode-btn" data-difficulty="medium" type="button" aria-pressed="false">Medium</button>
+            <button class="mode-btn" data-difficulty="hard" type="button" aria-pressed="false">Hard</button>
+        </div>
  
         <div class="daily-panel" id="daily-panel" hidden>
             <div class="daily-header">
@@ -73,6 +80,12 @@
             <p class="daily-done-title" id="daily-done-title"></p>
             <p class="daily-done-body" id="daily-done-body"></p>
             <p class="daily-done-cta">Come back tomorrow for a new word.</p>
+        </div>
+
+        <div class="goal-row" id="goal-row">
+            <div class="goal-head" id="goal-head"></div>
+            <div class="goal-track" id="goal-track"></div>
+            <p class="goal-caption" id="goal-caption"></p>
         </div>
  
         <div class="ledger">
@@ -127,6 +140,23 @@
             
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-cancel" id="history-close" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="goal-overlay">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="goal-modal-title">
+            <p class="modal-title" id="goal-modal-title">Daily practice goal</p>
+            <p class="modal-body">How many words do you want to practice today? A resolved word — correct or not — counts toward it.</p>
+            <div class="goal-options" id="goal-options">
+                <button class="goal-option" type="button" data-goal="5">5</button>
+                <button class="goal-option" type="button" data-goal="10">10</button>
+                <button class="goal-option" type="button" data-goal="20">20</button>
+                <button class="goal-option" type="button" data-goal="30">30</button>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="goal-none" type="button">No goal</button>
+                <button class="modal-btn modal-btn-cancel" id="goal-cancel" type="button">Cancel</button>
             </div>
         </div>
     </div>

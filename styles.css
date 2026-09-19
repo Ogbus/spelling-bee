@@ -586,6 +586,20 @@ label {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
+/* --- Difficulty toggle (practice mode) --- */
+.difficulty-toggle {
+    display: flex;
+    gap: 6px;
+    margin: -8px 0 20px;
+    background: var(--parchment-dim);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 4px;
+}
+
+/* Daily mode has one fixed word — difficulty doesn't apply. */
+body.mode-daily .difficulty-toggle { display: none; }
+
 /* --- Daily word + streak panel --- */
 .daily-panel { margin-bottom: 20px; }
 
@@ -620,7 +634,93 @@ label {
 
 /* In daily mode the practice ledger/footer are irrelevant — hide them */
 body.mode-daily .ledger,
-body.mode-daily .footer-actions { display: none; }
+body.mode-daily .footer-actions,
+body.mode-daily .goal-row { display: none; }
+
+/* --- Session goal --- */
+.goal-row {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+}
+
+.goal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.goal-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink);
+    opacity: 0.55;
+}
+
+.goal-count {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ink);
+}
+
+.goal-track {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--parchment-dim);
+    overflow: hidden;
+}
+
+.goal-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+    transition: width 0.3s ease;
+}
+
+.goal-fill.complete {
+    background: linear-gradient(90deg, var(--correct), #6f9a78);
+}
+
+.goal-caption {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink);
+    opacity: 0.5;
+    margin: 8px 0 0;
+}
+
+.goal-options {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.goal-option {
+    padding: 12px 0;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: #fffdf8;
+    color: var(--ink);
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.goal-option:hover { border-color: var(--gold); }
+.goal-option:active { transform: scale(0.96); }
+.goal-option.active {
+    background: var(--gold);
+    border-color: var(--gold);
+}
 
 .daily-done {
     margin-top: 8px;
