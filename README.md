@@ -1,6 +1,6 @@
 Spell It
 
-A single-page spelling practice web app. A word is spoken aloud via text-to-speech, and the user spells it back using a custom on-screen keyboard. Built as a lightweight, no-backend, single HTML file — no frameworks, no build step.
+A single-page spelling practice web app. A word is spoken aloud via text-to-speech, and the user spells it back using a custom on-screen keyboard. Built as a lightweight, no-backend static web app — no frameworks, no build step. The 1000-word bank lives in its own file (words.js) so data stays separate from app logic.
 
 Features
 
@@ -27,7 +27,7 @@ Difficulty selector — pick the practice word pool from All/Easy/Medium/Hard (e
 Tech Stack
 
 
-Vanilla HTML, CSS, and JavaScript — single file, no dependencies
+Vanilla HTML, CSS, and JavaScript — three static files, no dependencies; the word bank is split into words.js (data only) so app logic in script.js stays separate (separation of concerns)
 Web Speech API (SpeechSynthesis) for text-to-speech
 No backend, no database — all state is in-memory for this MVP
 
