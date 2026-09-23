@@ -922,9 +922,47 @@ soundToggleBtn.addEventListener('click', () => {
   if (soundEnabled) playCorrectSound(); // quick audible confirmation that sound is back on
 });
 
+// --- Dark mode toggle ---
+const THEME_KEY = 'spellit-theme';
+const themeToggleBtn = document.getElementById('theme-toggle');
+const themeMoon = document.getElementById('theme-moon');
+const themeSun = document.getElementById('theme-sun');
+let darkMode = false;
+
+function loadThemePref() {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    darkMode = saved === 'dark';
+  } catch (err) {
+    darkMode = false;
+  }
+}
+
+function saveThemePref() {
+  try {
+    localStorage.setItem(THEME_KEY, darkMode ? 'dark' : 'light');
+  } catch (err) {
+    console.warn('Spell It: could not save theme preference.', err);
+  }
+}
+
+function applyTheme() {
+  document.body.classList.toggle('dark', darkMode);
+  themeMoon.style.display = darkMode ? 'none' : 'block';
+  themeSun.style.display = darkMode ? 'block' : 'none';
+}
+
+themeToggleBtn.addEventListener('click', () => {
+  darkMode = !darkMode;
+  saveThemePref();
+  applyTheme();
+});
+
 // --- Init ---
 loadSoundPref();
 updateSoundIcon();
+loadThemePref();
+applyTheme();
 loadStats();
 updateStats();
 loadDifficulty();
