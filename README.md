@@ -15,7 +15,7 @@ Score tracking — correct count, words played, and accuracy percentage, calcula
 
 Responsive design — tested and tuned for both desktop and mobile screens
 
-300-word bank — tiered across easy, medium, and hard difficulty
+1000-word bank — tiered easy/medium/hard (333/334/333), generated programmatically from a public frequency word list, deduplicated and validated
 
 Daily Word + Streak — one seeded word per day (deterministic by date, no backend), with a daily streak that grows if you spell the day's word correctly, resets otherwise, and preserves your best streak
 
@@ -66,9 +66,9 @@ Fix: Refactored scoring to track outcomes per word rather than per submission. A
 
 6. Scaling the word bank without manual errors
 
-Growing the word list from 18 → 100 → 300 words by hand risked duplicate entries and miscounted difficulty tiers as the list got larger.
+Growing the word list by hand risked duplicate entries and miscounted difficulty tiers as the list got larger.
 
-Fix: For the 300-word expansion, the word list was generated and validated programmatically (deduplicated within and across difficulty tiers, exact tier counts verified) before being inserted into the app, rather than manually counted and typed.
+Fix: The word bank is generated and validated programmatically. For the expansion to 1000 words, a script pulled hermitdave's MIT-licensed en_50k frequency list (50k most common English words), filtered to real dictionary words (via dwyl/english-words' WordNet-derived list), dropped words invalid for play (non-letters, wrong length, proper-noun noise from the frequency tail, contraction fragments, profanity) and tiered by frequency: most frequent → easy/medium, longest and rarest dictionary-verified words → hard. Deduplication within and across tiers, exact tier counts (333/334/333), charset, and length were all verified by the script before insertion, rather than manually counted and typed.
 
 7. Native confirm() dialog breaking visual consistency
 
@@ -96,7 +96,7 @@ Fix: Added a daily goal (5/10/20/30 words, or none) stored per-day in localStora
 
 11. Letting the word bank filter by difficulty without breaking the daily word
 
-The 300-word bank is tiered easy/medium/hard, but pickWord() drew from all of it, so a short practice session could serve only hard words. Filtering practice by difficulty was straightforward; the tricky part was that it must NOT apply to Daily mode — the daily word is seeded by date so it's identical across devices, and letting a per-device difficulty setting change it would break that guarantee.
+The 1000-word bank is tiered easy/medium/hard, but pickWord() drew from all of it, so a short practice session could serve only hard words. Filtering practice by difficulty was straightforward; the tricky part was that it must NOT apply to Daily mode — the daily word is seeded by date so it's identical across devices, and letting a per-device difficulty setting change it would break that guarantee.
 
 Fix: A four-way "All / Easy / Medium / Hard" toggle in Practice mode filters the pool in pickWord(); the selection is persisted to localStorage like the mode. The toggle is hidden in Daily mode via a body.mode-daily rule, so there's no way for a stale difficulty to leak into the seeded daily word.
 
