@@ -279,6 +279,49 @@ label {
 .feedback.correct { color: var(--correct); }
 .feedback.incorrect { color: var(--incorrect); }
 
+.hint-card {
+    margin-top: 14px;
+    padding: 14px 16px;
+    border-radius: 4px;
+    background: var(--surface);
+    border-left: 3px solid var(--gold);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    animation: hint-in 0.25s ease;
+}
+
+@keyframes hint-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.hint-word {
+    margin: 0 0 6px;
+    font-family: 'Fraunces', serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--gold-dim);
+}
+
+.hint-meaning {
+    margin: 0 0 5px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink);
+}
+
+.hint-example {
+    margin: 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-style: italic;
+    color: var(--ink-soft);
+}
+
+.daily-done-hint {
+    margin-top: 16px;
+}
+
 .keyboard {
     margin-top: 24px;
     padding-top: 20px;

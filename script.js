@@ -208,6 +208,7 @@ function renderDaily() {
   if (!dailyState.completed) {
     interaction.hidden = false;
     doneCard.hidden = true;
+    dailyDoneHint.hidden = true;
     if (isYesterday(dailyStreak.lastPlayedDate) && dailyStreak.current > 0) {
       msg.textContent = 'Play today to keep your streak alive.';
     } else if (dailyStreak.current > 0) {
@@ -219,6 +220,7 @@ function renderDaily() {
   } else {
     interaction.hidden = true;
     doneCard.hidden = false;
+    showDailyHint(dailyState.word);
     if (dailyState.correct) {
       doneTitle.textContent = 'Correct — nice work!';
       doneBody.textContent = `You spelled “${dailyState.word}” right. Streak: ${dailyStreak.current} 🔥 (best ${dailyStreak.best}).`;
@@ -281,6 +283,7 @@ function setMode(next) {
     feedback.textContent = '';
     feedback.className = 'feedback';
   }
+  clearHintCard();
 
   if (mode === 'daily') {
     renderDaily();
@@ -652,6 +655,47 @@ const statCorrect = document.getElementById('stat-correct');
 const statTotal = document.getElementById('stat-total');
 const statPct = document.getElementById('stat-pct');
 const triesDisplay = document.getElementById('tries-display');
+const hintCard = document.getElementById('hint-card');
+const hintWord = document.getElementById('hint-word');
+const hintMeaning = document.getElementById('hint-meaning');
+const hintExample = document.getElementById('hint-example');
+const dailyDoneHint = document.getElementById('daily-done-hint');
+const dailyDoneHintWord = document.getElementById('daily-done-hint-word');
+const dailyDoneHintMeaning = document.getElementById('daily-done-hint-meaning');
+const dailyDoneHintExample = document.getElementById('daily-done-hint-example');
+
+// --- Vocab hints (definitions + example sentences, offline word-bank) ---
+function definitionFor(word) {
+  return (typeof DEFINITIONS === 'object' && DEFINITIONS !== null)
+    ? DEFINITIONS[word.toLowerCase()] || null
+    : null;
+}
+
+function fillHintCard(cardWordEl, cardMeaningEl, cardExampleEl, word) {
+  const def = definitionFor(word);
+  if (!def) return false;
+  cardWordEl.textContent = `“${word}”`;
+  cardMeaningEl.textContent = def.meaning;
+  cardExampleEl.textContent = `Example: ${def.example}`;
+  return true;
+}
+
+function showPracticeHint(word) {
+  if (fillHintCard(hintWord, hintMeaning, hintExample, word)) hintCard.hidden = false;
+}
+
+function clearHintCard() {
+  hintCard.hidden = true;
+  hintWord.textContent = '';
+  hintMeaning.textContent = '';
+  hintExample.textContent = '';
+}
+
+function showDailyHint(word) {
+  if (fillHintCard(dailyDoneHintWord, dailyDoneHintMeaning, dailyDoneHintExample, word)) {
+    dailyDoneHint.hidden = false;
+  }
+}
 
 // --- Voice selection: prefer a clearer network voice (e.g. Google) over
 // the default local voice, which on Windows is often a robotic SAPI voice ---
@@ -727,6 +771,7 @@ function handleSubmit() {
     feedback.textContent = `Correct — "${state.currentWord}" is spelled right.`;
     feedback.className = 'feedback correct';
     input.classList.add('correct');
+    showPracticeHint(state.currentWord);
     updateStats();
     playCorrectSound();
     incrementGoal();
@@ -735,6 +780,7 @@ function handleSubmit() {
       input.value = '';
       input.classList.remove('correct');
       feedback.textContent = '';
+      clearHintCard();
       resolving = false;
       pickWord();
       input.focus();
@@ -761,6 +807,7 @@ function handleSubmit() {
     resolving = true;
     feedback.textContent = `Out of tries — the word was "${state.currentWord}".`;
     feedback.className = 'feedback incorrect';
+    showPracticeHint(state.currentWord);
     updateStats();
     updateTriesDisplay();
     incrementGoal();
@@ -769,6 +816,7 @@ function handleSubmit() {
       input.value = '';
       input.classList.remove('incorrect');
       feedback.textContent = '';
+      clearHintCard();
       resolving = false;
       pickWord();
       input.focus();
@@ -793,6 +841,7 @@ document.querySelectorAll('.key[data-key]').forEach(key => {
     input.classList.remove('correct', 'incorrect');
     feedback.textContent = '';
     feedback.className = 'feedback';
+    clearHintCard();
   });
 });
 
@@ -820,6 +869,7 @@ document.addEventListener('keydown', (e) => {
     input.classList.remove('correct', 'incorrect');
     feedback.textContent = '';
     feedback.className = 'feedback';
+    clearHintCard();
   }
 });
 
@@ -864,6 +914,7 @@ document.getElementById('modal-confirm').addEventListener('click', () => {
   input.classList.remove('correct', 'incorrect');
   feedback.textContent = '';
   feedback.className = 'feedback';
+  clearHintCard();
 
   pickWord();
   input.focus();
