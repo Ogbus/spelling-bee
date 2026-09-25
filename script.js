@@ -1122,7 +1122,7 @@ function buildDailyShareText() {
     correct
       ? `Spelled it right! Streak: ${dailyStreak.current} 🔥 (best ${dailyStreak.best}).`
       : `Missed it — streak is back to ${dailyStreak.current} (best ${dailyStreak.best}).`,
-    'Try today\'s word: https://ogbus.github.io/spelling-bee/'
+    'Try today\'s word: https://spelling-bee-one-flax.vercel.app/'
   ].join('\n');
 }
 
