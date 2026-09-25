@@ -1009,6 +1009,182 @@ themeToggleBtn.addEventListener('click', () => {
   applyTheme();
 });
 
+// --- PWA: service worker + install prompt ---
+const installBtn = document.getElementById('install-btn');
+const installOverlay = document.getElementById('install-overlay');
+const installTitle = document.getElementById('install-title');
+const installBody = document.getElementById('install-body');
+const installConfirm = document.getElementById('install-confirm');
+const installCancel = document.getElementById('install-cancel');
+
+let deferredPrompt = null;
+let installOffered = false;
+
+try {
+  installOffered = localStorage.getItem('spellit-install-offered') === '1';
+} catch (err) { /* ignore */ }
+
+// The app needs a secure context + service worker before the browser will offer install.
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch((err) => {
+      console.warn('Spell It: service worker registration failed.', err);
+    });
+  });
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.classList.add('hint-glint');
+  // Once per browser: nudge toward installing in Daily mode, where predictability matters.
+  if (!installOffered) {
+    setTimeout(() => {
+      if (deferredPrompt && mode === 'daily') {
+        showInstallInfo();
+        installOffered = true;
+        try { localStorage.setItem('spellit-install-offered', '1'); } catch (err) { /* ignore */ }
+      }
+    }, 6000);
+  }
+});
+
+installBtn.addEventListener('click', () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      installBtn.classList.remove('hint-glint');
+    });
+  } else {
+    showInstallInfo();
+  }
+});
+
+installConfirm.addEventListener('click', () => {
+  installOverlay.classList.remove('visible');
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      installBtn.classList.remove('hint-glint');
+    });
+  }
+});
+
+installCancel.addEventListener('click', () => {
+  installOverlay.classList.remove('visible');
+});
+
+installOverlay.addEventListener('click', (e) => {
+  if (e.target === installOverlay) installOverlay.classList.remove('visible');
+});
+
+function showInstallInfo() {
+  const isIOS = /ipad|iphone|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS) {
+    installTitle.textContent = 'Add Spell It to your Home Screen';
+    installBody.textContent = 'Tap the Share button in Safari (the box with the up arrow), then choose "Add to Home Screen". It opens like an app on your home screen.';
+    installConfirm.textContent = 'Got it';
+    installConfirm.style.display = '';
+  } else {
+    installTitle.textContent = 'Install Spell It';
+    installBody.textContent = 'Install it as an app so it works offline and opens in its own window — like a native app.';
+    installConfirm.textContent = deferredPrompt ? 'Install now' : 'Got it';
+    installConfirm.style.display = '';
+  }
+  installOverlay.classList.add('visible');
+}
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  installBtn.classList.remove('hint-glint');
+});
+
+registerServiceWorker();
+
+// --- Share daily result & export history ---
+function buildDailyShareText() {
+  const word = dailyState.word;
+  const correct = dailyState.correct;
+  const emoji = correct ? '✅' : '🔁';
+  const meaningLine = definitionFor(word);
+  const defText = meaningLine
+    ? `"${word}": ${meaningLine.meaning}`
+    : `Today's word: ${word}`;
+
+  return [
+    `Spell It — daily word ${emoji}`,
+    defText,
+    correct
+      ? `Spelled it right! Streak: ${dailyStreak.current} 🔥 (best ${dailyStreak.best}).`
+      : `Missed it — streak is back to ${dailyStreak.current} (best ${dailyStreak.best}).`,
+    'Try today\'s word: https://ogbus.github.io/spelling-bee/'
+  ].join('\n');
+}
+
+function shareDailyResult() {
+  const text = buildDailyShareText();
+
+  if (navigator.share) {
+    return navigator.share({ title: 'Spell It — daily word', text }).catch(() => {});
+  }
+  copyToClipboard(text);
+  return Promise.resolve();
+}
+
+function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(() => {});
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (err) { /* ignore */ }
+    document.body.removeChild(ta);
+  }
+  const shareBtn = document.getElementById('daily-share-btn');
+  const original = shareBtn.textContent;
+  shareBtn.textContent = 'Copied!';
+  setTimeout(() => { shareBtn.textContent = original; }, 2000);
+}
+
+document.getElementById('daily-share-btn').addEventListener('click', shareDailyResult);
+
+function exportHistory() {
+  const history = loadHistory();
+  if (!history.length) {
+    copyToClipboard('No Spell It history to export yet — play a session, then reset to save it.');
+    return;
+  }
+  const esc = (cell) => `"${String(cell).replace(/"/g, '""')}"`;
+  const rows = history.map((entry) => [
+    new Date(entry.date).toISOString(),
+    entry.correctCount,
+    entry.wordsPlayed,
+    entry.pct
+  ]);
+  const csv = 'Date,Correct,Attempted,Accuracy (%)\n' + rows.map((r) => r.map(esc).join(',')).join('\n');
+
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `spell-it-history-${localDateStr()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+document.getElementById('export-history-btn').addEventListener('click', exportHistory);
+
 // --- Init ---
 loadSoundPref();
 updateSoundIcon();
