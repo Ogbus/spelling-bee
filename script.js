@@ -11,6 +11,7 @@ const state = {
   currentWord: null,
   correctCount: 0,
   wordsPlayed: 0, // words resolved: correct OR missed after tries run out
+  consecutiveCorrect: 0, // correct answers in a row within this session
   triesLeft: MAX_TRIES
 };
 
@@ -190,6 +191,12 @@ function resolveDaily(correct) {
   incrementGoal(); // the daily word is also one practiced word
   recordDay(correct);
   recordWord(dailyState.word, correct);
+  if (correct) {
+    state.consecutiveCorrect++;
+    showBadgeToast(evaluateBadges());
+  } else {
+    state.consecutiveCorrect = 0;
+  }
 }
 
 function renderDaily() {
@@ -769,6 +776,7 @@ function handleSubmit() {
   if (isCorrect) {
     state.correctCount++;
     state.wordsPlayed++;
+    state.consecutiveCorrect++;
     resolving = true;
     feedback.textContent = `Correct — "${state.currentWord}" is spelled right.`;
     feedback.className = 'feedback correct';
@@ -779,6 +787,7 @@ function handleSubmit() {
     incrementGoal();
     recordDay(true);
     recordWord(state.currentWord, true);
+    showBadgeToast(evaluateBadges());
 
     setTimeout(() => {
       input.value = '';
@@ -796,6 +805,7 @@ function handleSubmit() {
   state.triesLeft--;
   input.classList.add('incorrect');
   playIncorrectSound();
+  state.consecutiveCorrect = 0;
 
   if (state.triesLeft > 0) {
     feedback.textContent = `Not quite — ${state.triesLeft} ${state.triesLeft === 1 ? 'try' : 'tries'} left.`;
@@ -817,6 +827,7 @@ function handleSubmit() {
     incrementGoal();
     recordDay(false);
     recordWord(state.currentWord, false);
+    showBadgeToast(evaluateBadges());
 
     setTimeout(() => {
       input.value = '';
@@ -913,6 +924,7 @@ document.getElementById('modal-confirm').addEventListener('click', () => {
 
   state.correctCount = 0;
   state.wordsPlayed = 0;
+  state.consecutiveCorrect = 0;
   updateStats(); // also re-saves the cleared stats to localStorage
   resetGoalToday();
 
@@ -1289,6 +1301,7 @@ function renderDashboard() {
   const trendInfo = buildTrend(days);
   renderTrend(trendInfo);
   renderBestWords(loadWordStats());
+  renderBadges();
 
   const streakEl = document.getElementById('dash-streak');
   const bestEl = document.getElementById('dash-streak-best');
@@ -1478,6 +1491,291 @@ dashboardOverlay.addEventListener('click', (e) => {
   if (e.target === dashboardOverlay) dashboardOverlay.classList.remove('visible');
 });
 
+// --- Badges / Achievements ---
+const BADGES_KEY = 'spellit-badges';
+
+const BADGES = [
+  {
+    id: 'first-word',
+    name: 'First Word',
+    desc: 'Spell your first word correctly',
+    icon: '★',
+    check: (ctx) => ctx.stats.correctCount >= 1
+  },
+  {
+    id: 'first-streak',
+    name: 'First Streak',
+    desc: 'Reach a 2-day streak',
+    icon: '✦',
+    check: (ctx) => ctx.streak.best >= 2
+  },
+  {
+    id: 'hot-10',
+    name: 'Hot Streak',
+    desc: '10 correct answers in a row',
+    icon: '❖',
+    check: (ctx) => ctx.consecutive >= 10
+  },
+  {
+    id: 'perfect-round',
+    name: 'Perfect Round',
+    desc: 'Finish a round with 100% accuracy (5+ words)',
+    icon: '◉',
+    check: (ctx) => ctx.history.some((h) => h.wordsPlayed >= 5 && h.pct === 100)
+  },
+  {
+    id: 'week-streak',
+    name: 'Week Streak',
+    desc: 'Reach a 7-day streak',
+    icon: '✶',
+    check: (ctx) => ctx.streak.best >= 7
+  },
+  {
+    id: 'word-collector',
+    name: 'Word Collector',
+    desc: 'Spell 10 different words correctly',
+    icon: '❉',
+    check: (ctx) => Object.values(ctx.words).filter((w) => w.correct >= 1).length >= 10
+  },
+  {
+    id: 'daily-regular',
+    name: 'Daily Regular',
+    desc: 'Solve the daily word on 5 different days',
+    icon: '☀',
+    check: (ctx) => Object.values(ctx.days).filter((d) => d.correct >= 1).length >= 5
+  },
+  {
+    id: 'flawless-20',
+    name: 'Flawless 20',
+    desc: 'A round of 20+ words with 100% accuracy',
+    icon: '✚',
+    check: (ctx) => ctx.history.some((h) => h.wordsPlayed >= 20 && h.pct === 100)
+  },
+  {
+    id: 'month-streak',
+    name: 'Month Streak',
+    desc: 'Reach a 30-day streak',
+    icon: '✺',
+    check: (ctx) => ctx.streak.best >= 30
+  }
+];
+
+function loadBadges() {
+  try {
+    const saved = localStorage.getItem(BADGES_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch (err) {
+    console.warn('Spell It: could not load badges.', err);
+    return {};
+  }
+}
+
+function saveBadges(badges) {
+  try {
+    localStorage.setItem(BADGES_KEY, JSON.stringify(badges));
+  } catch (err) {
+    console.warn('Spell It: could not save badges.', err);
+  }
+}
+
+function getBadgeContext() {
+  return {
+    stats: { correctCount: state.correctCount, wordsPlayed: state.wordsPlayed },
+    streak: { best: dailyStreak.best },
+    consecutive: state.consecutiveCorrect,
+    days: loadDayStats(),
+    words: loadWordStats(),
+    history: loadHistory()
+  };
+}
+
+// Re-check every badge against persisted data and stamp anything newly earned.
+// Returns the list of freshly earned badges (for toasts).
+function evaluateBadges() {
+  const earned = loadBadges();
+  const ctx = getBadgeContext();
+  const newly = [];
+  BADGES.forEach((badge) => {
+    if (earned[badge.id]) return;
+    if (!badge.check(ctx)) return;
+    earned[badge.id] = new Date().toISOString();
+    newly.push(badge);
+  });
+  if (newly.length) saveBadges(earned);
+  return newly;
+}
+
+function renderBadges() {
+  const earned = loadBadges();
+  const countEl = document.getElementById('dash-badge-count');
+  const grid = document.getElementById('dash-badges');
+  const caption = document.getElementById('dash-badges-caption');
+  const dlBtn = document.getElementById('badges-download-btn');
+
+  const earnedCount = Object.keys(earned).length;
+  if (earnedCount === 0) {
+    grid.innerHTML = '<p class="dash-empty">Earn badges by practicing — keep your streak alive.</p>';
+  } else {
+    const chips = BADGES
+      .filter((b) => earned[b.id])
+      .map((b) => {
+        const when = new Date(earned[b.id]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        return `<span class="badge-chip" title="${b.desc}">${b.icon} ${b.name}<em>${when}</em></span>`;
+      })
+      .join('');
+    const locked = BADGES
+      .filter((b) => !earned[b.id])
+      .map((b) => `<span class="badge-chip badge-locked" title="${b.desc}">${b.icon} ${b.name}</span>`)
+      .join('');
+    grid.innerHTML = `${chips}${locked}`;
+  }
+
+  countEl.textContent = `${earnedCount}/${BADGES.length} earned`;
+  caption.textContent = earnedCount === 0
+    ? 'Spell words, keep streaks, and ace rounds to unlock each one.'
+    : 'Badges are earned once and kept forever.';
+  dlBtn.disabled = earnedCount === 0;
+}
+
+function showBadgeToast(newly) {
+  if (!newly.length) return;
+  let old = document.getElementById('badge-toast');
+  if (old) old.remove();
+  const toast = document.createElement('div');
+  toast.id = 'badge-toast';
+  toast.className = 'badge-toast';
+  const first = newly[0];
+  const label = newly.length === 1
+    ? `Badge unlocked — ${first.icon} ${first.name}`
+    : `${newly.length} badges unlocked!`;
+  toast.innerHTML = `<span>${label}</span>`;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('visible'));
+  setTimeout(() => {
+    toast.classList.remove('visible');
+    setTimeout(() => toast.remove(), 300);
+  }, 4200);
+}
+
+// --- Badge card: draw an exportable PNG of earned badges ---
+function downloadBadgeCard() {
+  const earned = loadBadges();
+  const rows = BADGES.filter((b) => earned[b.id]);
+  if (!rows.length) return;
+
+  const W = 1080;
+  const ROW_H = 118;
+  const PAD = 76;
+  const HEADER_H = 150;
+  const FOOTER_H = 190;
+  const H = PAD + HEADER_H + rows.length * ROW_H + (rows.length - 1) * 22 + FOOTER_H;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const draw = () => {
+    const INK = '#f0e9da';
+    const INK_SOFT = '#a89d88';
+    const SURFACE = '#242d29';
+    const BG = '#1c2321';
+    const GOLD = '#d3a94f';
+    const LINE = '#363f3a';
+
+    const roundRect = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    };
+
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(211,169,79,0.35)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(14, 14, W - 28, H - 28);
+
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = GOLD;
+    ctx.font = '600 30px Inter, sans-serif';
+    ctx.fillText('SPELL IT', PAD, PAD + 18);
+
+    ctx.fillStyle = INK;
+    ctx.font = '600 92px Fraunces, serif';
+    ctx.fillText('Badge collection', PAD, HEADER_H - 8);
+
+    ctx.fillStyle = INK_SOFT;
+    ctx.font = '400 28px Inter, sans-serif';
+    ctx.fillText(`${rows.length} of ${BADGES.length} badges earned`, PAD, HEADER_H + 28);
+
+    let y = HEADER_H + 96;
+    rows.forEach((badge, i) => {
+      const when = new Date(earned[badge.id]);
+      const dateLabel = when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+
+      roundRect(PAD, y, W - PAD * 2, ROW_H, 8);
+      ctx.fillStyle = SURFACE;
+      ctx.fill();
+
+      ctx.fillStyle = GOLD;
+      ctx.fillRect(PAD, y, 5, ROW_H);
+
+      ctx.fillStyle = GOLD;
+      ctx.font = '600 44px Fraunces, serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(badge.icon, PAD + 30, y + ROW_H / 2);
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = INK;
+      ctx.font = '600 38px Fraunces, serif';
+      ctx.fillText(badge.name, PAD + 96, y + ROW_H / 2 - 14);
+
+      ctx.fillStyle = INK_SOFT;
+      ctx.font = '400 23px Inter, sans-serif';
+      ctx.fillText(badge.desc, PAD + 96, y + ROW_H / 2 + 30);
+
+      ctx.textAlign = 'right';
+      ctx.fillStyle = GOLD;
+      ctx.font = '400 22px "IBM Plex Mono", monospace';
+      ctx.fillText(dateLabel, W - PAD - 30, y + ROW_H / 2);
+
+      y += ROW_H + 22;
+    });
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = INK_SOFT;
+    ctx.font = '400 26px Inter, sans-serif';
+    ctx.fillText('spelling-bee-one-flax.vercel.app', W / 2, H - FOOTER_H / 2);
+  };
+
+  const finish = () => {
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `spell-it-badges-${localDateStr()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, 'image/png');
+  };
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { draw(); finish(); });
+  } else {
+    draw();
+    finish();
+  }
+}
+
+document.getElementById('badges-download-btn').addEventListener('click', downloadBadgeCard);
+
 // --- Init ---
 loadSoundPref();
 updateSoundIcon();
@@ -1492,3 +1790,6 @@ initDaily();
 initGoal();
 loadMode();
 setMode(mode);
+
+// Award badges retroactively from whatever the user has already earned.
+evaluateBadges();

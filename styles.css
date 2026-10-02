@@ -823,6 +823,103 @@ label {
   margin: 0;
 }
 
+/* --- Badges --- */
+.dash-label-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.dash-label-inline { margin: 0; }
+
+.dash-badge-count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--gold-dim);
+}
+
+.dash-download-btn {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--gold-dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.dash-download-btn:hover:not(:disabled) {
+  background: var(--parchment-dim);
+  color: var(--ink);
+  border-color: var(--gold);
+}
+
+.dash-download-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.badge-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+
+.badge-chip em {
+  font-style: normal;
+  color: var(--gold-dim);
+  font-size: 10px;
+  margin-left: 2px;
+}
+
+.badge-chip.badge-locked {
+  border-color: var(--line);
+  opacity: 0.45;
+}
+
+.badge-toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translate(-50%, -16px);
+  z-index: 200;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  padding: 10px 18px;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+}
+
+.badge-toast.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 /* --- Mode toggle --- */
 .mode-toggle {
     display: flex;
