@@ -188,6 +188,8 @@ function resolveDaily(correct) {
   saveStreak();
 
   incrementGoal(); // the daily word is also one practiced word
+  recordDay(correct);
+  recordWord(dailyState.word, correct);
 }
 
 function renderDaily() {
@@ -775,6 +777,8 @@ function handleSubmit() {
     updateStats();
     playCorrectSound();
     incrementGoal();
+    recordDay(true);
+    recordWord(state.currentWord, true);
 
     setTimeout(() => {
       input.value = '';
@@ -811,6 +815,8 @@ function handleSubmit() {
     updateStats();
     updateTriesDisplay();
     incrementGoal();
+    recordDay(false);
+    recordWord(state.currentWord, false);
 
     setTimeout(() => {
       input.value = '';
@@ -1185,6 +1191,293 @@ function exportHistory() {
 
 document.getElementById('export-history-btn').addEventListener('click', exportHistory);
 
+// --- Progress dashboard (per-day + per-word rollups, rendered from history) ---
+const DAYS_KEY = 'spellit-days';
+const WORDS_KEY = 'spellit-words';
+const HEATMAP_WEEKS = 16;
+const TREND_DAYS = 21;
+
+function loadDayStats() {
+  try {
+    const saved = localStorage.getItem(DAYS_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch (err) {
+    console.warn('Spell It: could not load day stats.', err);
+    return {};
+  }
+}
+
+function saveDayStats(stats) {
+  try {
+    localStorage.setItem(DAYS_KEY, JSON.stringify(stats));
+  } catch (err) {
+    console.warn('Spell It: could not save day stats.', err);
+  }
+}
+
+function loadWordStats() {
+  try {
+    const saved = localStorage.getItem(WORDS_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch (err) {
+    console.warn('Spell It: could not load word stats.', err);
+    return {};
+  }
+}
+
+function saveWordStats(stats) {
+  try {
+    localStorage.setItem(WORDS_KEY, JSON.stringify(stats));
+  } catch (err) {
+    console.warn('Spell It: could not save word stats.', err);
+  }
+}
+
+function recordDay(correct) {
+  const stats = loadDayStats();
+  const key = localDateStr();
+  const day = stats[key] || { played: 0, correct: 0 };
+  day.played++;
+  if (correct) day.correct++;
+  stats[key] = day;
+  // Keep the row-cover bounded (~120 days) so localStorage stays small.
+  saveDayStats(stats);
+}
+
+function recordWord(word, correct) {
+  if (!word) return;
+  const stats = loadWordStats();
+  const key = word.toLowerCase();
+  const rec = stats[key] || { played: 0, correct: 0, missed: 0 };
+  rec.played++;
+  if (correct) {
+    rec.correct++;
+  } else {
+    rec.missed++;
+  }
+  stats[key] = rec;
+  saveWordStats(stats);
+}
+
+// One-time: fold pre-dashboard session snapshots into the day rollup.
+function backfillDaysFromHistory() {
+  try {
+    if (localStorage.getItem('spellit-days-backed') === '1') return;
+  } catch (err) { return; }
+  const history = loadHistory();
+  if (!history.length) return;
+  const stats = loadDayStats();
+  let changed = false;
+  history.forEach((entry) => {
+    let dateStr;
+    try {
+      dateStr = localDateStr(new Date(entry.date));
+    } catch (err) { return; }
+    const day = stats[dateStr] || { played: 0, correct: 0 };
+    day.played += entry.wordsPlayed;
+    day.correct += entry.correctCount;
+    stats[dateStr] = day;
+    changed = true;
+  });
+  if (changed) saveDayStats(stats);
+  try { localStorage.setItem('spellit-days-backed', '1'); } catch (err) { /* ignore */ }
+}
+
+function renderDashboard() {
+  const days = loadDayStats();
+  renderHeatmap(days);
+  const trendInfo = buildTrend(days);
+  renderTrend(trendInfo);
+  renderBestWords(loadWordStats());
+
+  const streakEl = document.getElementById('dash-streak');
+  const bestEl = document.getElementById('dash-streak-best');
+  if (dailyStreak.current > 0) {
+    streakEl.textContent = `${dailyStreak.current} 🔥`;
+    bestEl.textContent = `streak · best ${dailyStreak.best}`;
+  } else {
+    streakEl.textContent = 'No streak';
+    bestEl.textContent = `best ${dailyStreak.best}`;
+  }
+}
+
+// --- Heatmap: most recent N weeks, GitHub-style (weeks as columns) ---
+function renderHeatmap(days) {
+  const el = document.getElementById('dash-heatmap');
+  const today = new Date();
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const totalDays = HEATMAP_WEEKS * 7;
+  const start = new Date(end);
+  start.setDate(start.getDate() - (totalDays - 1));
+  start.setDate(start.getDate() - start.getDay()); // back up to a Sunday
+
+  const levelOf = (played) => {
+    if (!played) return 0;
+    if (played === 1) return 1;
+    if (played <= 3) return 2;
+    return 3;
+  };
+
+  let cells = '';
+  let activeDays = 0;
+  let totalPlayed = 0;
+  for (let week = 0; week < HEATMAP_WEEKS; week++) {
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + week * 7 + d);
+      const key = localDateStr(date);
+      const day = days[key];
+      const played = day ? day.played : 0;
+      const level = levelOf(played);
+      const isFuture = date.getTime() > end.getTime();
+      totalPlayed += played;
+      if (played > 0) activeDays++;
+      const label = day
+        ? `${key}: ${day.correct}/${day.played}` + (level >= 2 ? ' · nice!' : '')
+        : `${key}: no practice`;
+      cells += `<span class="heat-cell heat-${isFuture ? 'future' : level}" title="${label}"></span>`;
+    }
+  }
+
+  el.innerHTML = cells;
+  const caption = document.getElementById('dash-heatmap-caption');
+  if (totalPlayed === 0) {
+    caption.textContent = 'Play your first word to light up the calendar.';
+  } else {
+    caption.textContent = `${totalPlayed} words in ${activeDays} active ${activeDays === 1 ? 'day' : 'days'} over ${HEATMAP_WEEKS} weeks`;
+  }
+}
+
+// --- Accuracy trend: smoothed 7-day rolling average over the last 3 weeks ---
+function buildTrend(days) {
+  const daily = [];
+  const today = new Date();
+  for (let i = TREND_DAYS - 1; i >= 0; i--) {
+    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+    const key = localDateStr(date);
+    daily.push(days[key]);
+  }
+
+  // Window average over the 7 days ending at index i (skips days with no play).
+  const rolling = daily.map((_, i) => {
+    const window = daily.slice(Math.max(0, i - 6), i + 1).filter((d) => d && d.played > 0);
+    if (!window.length) return null;
+    const acc = window.reduce((sum, d) => sum + d.correct / d.played, 0) / window.length;
+    return Math.round(acc * 100);
+  });
+
+  // Compare the last 7 days (indices 14-20) against the 7 before (indices 7-13).
+  const lastWeek = daily.slice(14).filter((d) => d && d.played > 0);
+  const prevWeek = daily.slice(7, 14).filter((d) => d && d.played > 0);
+  const avgAcc = (list) => {
+    if (!list.length) return null;
+    return (list.reduce((s, d) => s + d.correct / d.played, 0) / list.length) * 100;
+  };
+  const lastAvg = avgAcc(lastWeek);
+  const prevAvg = avgAcc(prevWeek);
+
+  let caption;
+  if (lastAvg === null && prevAvg === null) {
+    caption = 'Spell a few words daily to see your accuracy trend.';
+  } else if (lastAvg === null) {
+    caption = 'No words yet this week.';
+  } else if (prevAvg === null) {
+    caption = `This week: ${Math.round(lastAvg)}% accuracy.`;
+  } else {
+    const delta = Math.round(lastAvg - prevAvg);
+    caption = delta === 0
+      ? `This week ${Math.round(lastAvg)}% — tied with last week.`
+      : delta > 0
+        ? `This week ${Math.round(lastAvg)}% · ▲ +${delta} pts vs last week`
+        : `This week ${Math.round(lastAvg)}% · ▼ ${-delta} pts vs last week`;
+  }
+
+  return { rolling, caption };
+}
+
+function renderTrend({ rolling, caption }) {
+  const svg = document.getElementById('dash-trend');
+  const W = 420, H = 110, PL = 36, PR = 10, PT = 12, PB = 18;
+  const plotW = W - PL - PR;
+  const plotH = H - PT - PB;
+
+  const xs = (i) => PL + (i / (TREND_DAYS - 1)) * plotW;
+  const ys = (v) => PT + ((100 - v) / 100) * plotH;
+
+  let grid = '';
+  [0, 50, 100].forEach((v) => {
+    const y = ys(v).toFixed(1);
+    grid += `<line x1="${PL}" x2="${W - PR}" y1="${y}" y2="${y}" class="trend-grid"/>`;
+    grid += `<text x="${PL - 6}" y="${(parseFloat(y) + 3).toFixed(1)}" class="trend-axis" text-anchor="end">${v}%</text>`;
+  });
+
+  let path = '';
+  let dots = '';
+  rolling.forEach((v, i) => {
+    if (v === null) return;
+    const x = xs(i).toFixed(1);
+    const y = ys(v).toFixed(1);
+    path += `${path === '' ? 'M' : ' L'}${x} ${y}`;
+    dots += `<circle cx="${x}" cy="${y}" r="2.5" class="trend-dot"/>`;
+  });
+
+  svg.innerHTML = grid + (path ? `<path d="${path}" class="trend-line"/>` : '') + dots;
+  document.getElementById('dash-trend-caption').textContent = caption;
+}
+
+// --- Best / trickiest words ---
+function renderBestWords(wordStats) {
+  const el = document.getElementById('dash-best');
+  const entries = Object.keys(wordStats)
+    .map((word) => ({ word, ...wordStats[word], acc: wordStats[word].correct / wordStats[word].played }))
+    .filter((e) => e.played >= 3);
+
+  if (!entries.length) {
+    el.innerHTML = '<p class="dash-empty">Spell a word 3+ times to unlock best-word stats.</p>';
+    return;
+  }
+
+  const sortedByAcc = [...entries].sort((a, b) => b.acc - a.acc);
+  const best = sortedByAcc[0];
+  const tricky = entries.filter((e) => e.missed > 0).sort((a, b) => b.missed - a.missed)[0];
+
+  const def = definitionFor(best.word);
+  let html = `
+    <div class="dash-best-item dash-best-top">
+      <span class="dash-best-word">“${best.word}”</span>
+      <span class="dash-best-pct">${Math.round(best.acc * 100)}% · ${best.played} plays</span>
+      ${def ? `<p class="dash-best-meaning">${def.meaning}</p>` : ''}
+    </div>`;
+  if (tricky && tricky.word !== best.word) {
+    const trDef = definitionFor(tricky.word);
+    html += `
+    <div class="dash-best-item">
+      <span class="dash-best-tag">trickiest</span>
+      <span class="dash-best-word">“${tricky.word}”</span>
+      <span class="dash-best-pct">${tricky.missed} first-try ${tricky.missed === 1 ? 'miss' : 'misses'}</span>
+      ${trDef ? `<p class="dash-best-meaning">${trDef.meaning}</p>` : ''}
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+// --- Dashboard modal wiring ---
+const dashboardOverlay = document.getElementById('dashboard-overlay');
+
+function openDashboard() {
+  renderDashboard();
+  dashboardOverlay.classList.add('visible');
+}
+
+document.getElementById('dashboard-btn').addEventListener('click', openDashboard);
+document.getElementById('daily-done-progress-btn').addEventListener('click', openDashboard);
+document.getElementById('dashboard-close').addEventListener('click', () => {
+  dashboardOverlay.classList.remove('visible');
+});
+dashboardOverlay.addEventListener('click', (e) => {
+  if (e.target === dashboardOverlay) dashboardOverlay.classList.remove('visible');
+});
+
 // --- Init ---
 loadSoundPref();
 updateSoundIcon();
@@ -1192,6 +1485,7 @@ loadThemePref();
 applyTheme();
 loadStats();
 updateStats();
+backfillDaysFromHistory();
 loadDifficulty();
 setDifficulty(difficulty);
 initDaily();

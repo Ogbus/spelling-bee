@@ -121,6 +121,7 @@
                 <p class="hint-example" id="daily-done-hint-example"></p>
             </div>
             <div class="daily-done-actions">
+                <button class="daily-share-btn" id="daily-done-progress-btn" type="button">Progress</button>
                 <button class="daily-share-btn" id="daily-share-btn" type="button">Share result</button>
             </div>
             <p class="daily-done-cta">Come back tomorrow for a new word.</p>
@@ -148,6 +149,7 @@
         </div>
 
         <div class="footer-actions">
+            <button class="reset-btn" id="dashboard-btn" type="button">Progress</button>
             <button class="reset-btn" id="history-btn" type="button">View history</button>
             <button class="reset-btn" id="reset-btn" type="button">Reset progress</button>
         </div>
@@ -213,6 +215,33 @@
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-cancel" id="install-cancel" type="button">Cancel</button>
                 <button class="modal-btn modal-btn-primary" id="install-confirm" type="button">Install</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="dashboard-overlay">
+        <div class="modal modal-dashboard" role="dialog" aria-modal="true" aria-labelledby="dashboard-title">
+            <p class="modal-title" id="dashboard-title">Progress</p>
+            <div class="dash-streak-row">
+                <span class="dash-streak" id="dash-streak"></span>
+                <span class="dash-streak-best" id="dash-streak-best"></span>
+            </div>
+            <div class="dash-section">
+                <p class="dash-label">Practice calendar</p>
+                <div class="heatmap" id="dash-heatmap" role="img" aria-label="Practice activity over the last 16 weeks"></div>
+                <p class="dash-caption" id="dash-heatmap-caption"></p>
+            </div>
+            <div class="dash-section">
+                <p class="dash-label">Accuracy trend</p>
+                <svg class="trend" id="dash-trend" viewBox="0 0 420 110" role="img" aria-label="Accuracy trend over time"></svg>
+                <p class="dash-caption" id="dash-trend-caption"></p>
+            </div>
+            <div class="dash-section">
+                <p class="dash-label">Best words</p>
+                <div id="dash-best"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="dashboard-close" type="button">Close</button>
             </div>
         </div>
     </div>
