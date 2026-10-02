@@ -1054,7 +1054,6 @@ function registerServiceWorker() {
 }
 
 window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
   deferredPrompt = e;
   installBtn.classList.add('hint-glint');
   // Once per browser: nudge toward installing in Daily mode, where predictability matters.
