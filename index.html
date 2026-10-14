@@ -156,6 +156,7 @@
             <button class="reset-btn" id="dashboard-btn" type="button">Progress</button>
             <button class="reset-btn" id="history-btn" type="button">View history</button>
             <button class="reset-btn" id="reset-btn" type="button">Reset progress</button>
+            <button class="reset-btn" id="sync-now-btn" type="button">Sync</button>
         </div>
         
     </div>
@@ -258,11 +259,51 @@
             </div>
         </div>
     </div>
+    <div class="modal-overlay" id="sync-overlay">
+        <div class="modal modal-sync" role="dialog" aria-modal="true" aria-labelledby="sync-title">
+            <p class="modal-title" id="sync-title">Sync your progress</p>
+            <p class="modal-body">Access your progress, history, badges and settings on any device.</p>
+
+            <div id="sync-form">
+                <p class="sync-mode-hint" id="sync-toggle-hint"></p>
+                <label class="sync-field">
+                    <span class="sync-label">Username</span>
+                    <input class="sync-input" id="sync-username" type="text" autocomplete="username"
+                        autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="20" placeholder="e.g. ruby_2014">
+                </label>
+                <label class="sync-field">
+                    <span class="sync-label">PIN</span>
+                    <input class="sync-input" id="sync-pin" type="password" inputmode="numeric"
+                        autocomplete="current-password" maxlength="8" placeholder="4–8 digits">
+                </label>
+                <div class="modal-actions">
+                    <button class="modal-btn modal-btn-cancel" id="sync-close" type="button">Cancel</button>
+                    <button class="modal-btn modal-btn-primary" id="sync-submit" type="button">Sign in</button>
+                </div>
+                <button class="sync-toggle" id="sync-toggle" type="button">Create a new account</button>
+            </div>
+
+            <div id="sync-signed-in" hidden>
+                <p class="sync-signed-in-line">Signed in as <strong id="sync-signed-in-as"></strong></p>
+                <div class="modal-actions modal-actions-between">
+                    <button class="modal-btn modal-btn-ghost" id="sync-signout" type="button">Sign out</button>
+                    <button class="modal-btn modal-btn-primary" id="sync-now" type="button">Sync now</button>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn modal-btn-cancel" id="sync-close-2" type="button">Close</button>
+                </div>
+            </div>
+
+            <p class="sync-msg" id="sync-msg"></p>
+            <p class="sync-status" id="sync-status"></p>
+        </div>
+    </div>
     <script src="words.js"></script>
     <script src="defs-easy.js"></script>
     <script src="defs-medium.js"></script>
     <script src="defs-hard.js"></script>
     <script src="definitions.js"></script>
     <script src="script.js"></script>
+    <script src="sync.js"></script>
 </body>
 </html>

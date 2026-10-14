@@ -1,6 +1,6 @@
 Spell It
 
-A single-page spelling practice web app. A word is spoken aloud via text-to-speech, and the user spells it back using a custom on-screen keyboard. Built as a lightweight, no-backend static web app — no frameworks, no build step. The 1000-word bank lives in its own file (words.js) so data stays separate from app logic.
+A single-page spelling practice web app. A word is spoken aloud via text-to-speech, and the user spells it back using a custom on-screen keyboard. Built as a lightweight static web app — no frameworks, no build step for the client. The 1000-word bank lives in its own file (words.js) so data stays separate from app logic. An optional serverless backend (in /api) provides cross-device sync.
 
 Features
 
@@ -29,7 +29,8 @@ Tech Stack
 
 Vanilla HTML, CSS, and JavaScript — three static files, no dependencies; the word bank is split into words.js (data only) so app logic in script.js stays separate (separation of concerns)
 Web Speech API (SpeechSynthesis) for text-to-speech
-No backend, no database — all state is in-memory for this MVP
+No client build step — all state is persisted in localStorage
+Optional cross-device sync — serverless Vercel Functions in /api using Vercel KV / Upstash Redis (see "Cross-device sync" below). The app works fully offline without it.
 
 
 Challenges & How They Were Resolved
@@ -99,6 +100,31 @@ Fix: Added a daily goal (5/10/20/30 words, or none) stored per-day in localStora
 The 1000-word bank is tiered easy/medium/hard, but pickWord() drew from all of it, so a short practice session could serve only hard words. Filtering practice by difficulty was straightforward; the tricky part was that it must NOT apply to Daily mode — the daily word is seeded by date so it's identical across devices, and letting a per-device difficulty setting change it would break that guarantee.
 
 Fix: A four-way "All / Easy / Medium / Hard" toggle in Practice mode filters the pool in pickWord(); the selection is persisted to localStorage like the mode. The toggle is hidden in Daily mode via a body.mode-daily rule, so there's no way for a stale difficulty to leak into the seeded daily word.
+
+
+Cross-device sync
+
+Progress (stats, history, daily word, streak, day/word rollups, badges) and settings (theme, mode, difficulty, goal, sound) can follow the user across devices via a small serverless backend.
+
+How it works
+
+/api/signup, /api/login, /api/logout — username + PIN accounts. The PIN is hashed with scrypt (per-user salt); sessions are opaque bearer tokens stored in KV with a 30-day TTL.
+/api/sync — GET returns the stored state bundle; PUT replaces it. The state blob is opaque to the server; the client owns all merge logic.
+Client merge (sync.js) runs a pull → merge → apply → push cycle on load, on tab focus, and (debounced) after any state write. Conflicts are resolved deterministically: counters take the max, day/word maps are unioned per field, badges keep the earliest earned timestamp, and settings use last-write-wins with a timestamp. The merge is idempotent, so it never loops.
+Offline-first: if the network is unavailable, writes stay in localStorage and retry on the next change. The app is fully usable without ever signing in.
+
+Setup (Vercel)
+
+1. Deploy the repo to Vercel as usual (the /api directory is picked up automatically as Node.js functions).
+2. Create a KV store and connect it to the project — either Vercel KV or Upstash Redis from the Vercel Marketplace. Connecting it sets the env vars for you.
+   - Vercel KV: KV_REST_API_URL, KV_REST_API_TOKEN
+   - Upstash: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+3. Redeploy. Until a store is connected, the auth/sync endpoints return 503 and the app runs in local-only mode.
+
+Security notes
+
+PINs are low-entropy by design (for kids / low-connectivity use), so this is not a high-security account system — it protects against casual access, not determined attackers. Usernames are normalized to lowercase; sessions are revocable by signing out.
+
 
 
 
