@@ -874,6 +874,22 @@ document.getElementById('kb-enter').addEventListener('click', handleSubmit);
 document.addEventListener('keydown', (e) => {
   if (mode === 'daily' && dailyState.completed) return; // daily word already resolved
 
+  // Do not drive the spelling input while a modal is open (sync, history,
+  // goal, etc.) — the modal's own fields/buttons handle their own keys.
+  if (document.querySelector('.modal-overlay.visible')) return;
+
+  // Let other text fields (e.g. the sync username/PIN inputs) type normally;
+  // only the readonly spelling input is driven by this global handler.
+  const target = e.target;
+  if (target && target !== input && (
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.tagName === 'SELECT' ||
+    target.isContentEditable
+  )) {
+    return;
+  }
+
   if (e.key === 'Enter') {
     e.preventDefault();
     handleSubmit();
