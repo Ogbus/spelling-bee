@@ -1,10 +1,11 @@
 // Spell It — service worker: offline-first caching for the app shell.
-const CACHE = 'spellit-v3';
+const CACHE = 'spellit-v4';
 const PRECACHE = [
   './',
   './index.html',
   './styles.css',
   './script.js',
+  './sync.js',
   './words.js',
   './defs-easy.js',
   './defs-medium.js',
@@ -36,6 +37,13 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
+  const url = new URL(req.url);
+
+  // Never intercept the sync API — it must always hit the network.
+  if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) {
+    return;
+  }
+
   // Navigations: network-first so users get updates, with cached shell as offline fallback.
   if (req.mode === 'navigate') {
     event.respondWith(
@@ -49,8 +57,6 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-
-  const url = new URL(req.url);
 
   // Same-origin app assets: network-first so updates go live on the next
   // visit without a hard reload. The cache is refreshed on every successful
