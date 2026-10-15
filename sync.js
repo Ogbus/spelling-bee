@@ -9,6 +9,8 @@
 
 (function () {
   const AUTH_KEY = 'spellit-sync';
+  const OWNER_KEY = 'spellit-sync-owner';     // username owning this device's blob
+  const ARCHIVE_KEY = 'spellit-sync-archive'; // safety copy of wiped progress (never synced)
   const PREFS_AT_KEY = 'spellit-sync-prefs-at';
   const PREFS_SNAP_KEY = 'spellit-sync-prefs-snap';
 
@@ -67,6 +69,27 @@
     try { originalRemoveItem(AUTH_KEY); } catch (err) { /* ignore */ }
   }
 
+  // --- Device data ownership ---
+  // The local progress blob belongs to at most one account. `owner` is null
+  // while the data is anonymous (played before any sign-in). It is set when
+  // the data is first claimed and never silently reassigned: a different
+  // account must be told what is on the device before anything moves.
+  function getOwner() {
+    const owner = readJSON(OWNER_KEY, null);
+    return typeof owner === 'string' && owner ? owner : null;
+  }
+
+  function setOwner(username) {
+    writeJSON(OWNER_KEY, username);
+  }
+
+  // Migration for sessions signed in before ownership tracking existed:
+  // their device data has already been merged with this account, so claim it.
+  (function () {
+    const auth = getAuth();
+    if (auth && !getOwner()) setOwner(auth.username);
+  })();
+
   // --- State collection ---
   function collectSettings() {
     return {
@@ -119,6 +142,26 @@
       settings,
       settingsUpdatedAt: Number(localStorage.getItem(PREFS_AT_KEY) || 0)
     };
+  }
+
+  // True when the bundle carries no played-progress. Settings alone don't
+  // count — changing the theme is not something an account should inherit
+  // as "your progress". The daily word record exists from the first visit
+  // (initDaily writes it before any play), so only a completed round counts.
+  function isEmptyProgress(state) {
+    if (!state) return true;
+    const stats = state.stats || {};
+    if (Number(stats.correctCount || 0) > 0 || Number(stats.wordsPlayed || 0) > 0) return false;
+    if (Array.isArray(state.history) && state.history.length > 0) return false;
+    if (state.daily && state.daily.completed) return false;
+    const streak = state.streak || {};
+    if (Number(streak.current || 0) > 0 || Number(streak.best || 0) > 0) return false;
+    if (state.days && Object.keys(state.days).length > 0) return false;
+    if (state.words && Object.keys(state.words).length > 0) return false;
+    if (state.badges && Object.keys(state.badges).length > 0) return false;
+    const goal = state.settings && state.settings.goal;
+    if (goal && (Number(goal.progress || 0) > 0 || goal.completed)) return false;
+    return true;
   }
 
   // --- Merge helpers ---
@@ -266,6 +309,25 @@
     originalSetItem(PREFS_AT_KEY, String(bundle.settingsUpdatedAt || Date.now()));
   }
 
+  // --- Reset helpers (claim choice: "start fresh") ---
+  const PROGRESS_KEYS = [
+    K_STATS, K_HISTORY, K_DAILY, K_STREAK, K_DAYS, K_WORDS, K_BADGES, K_GOAL
+  ];
+
+  function wipeProgress() {
+    PROGRESS_KEYS.forEach((key) => {
+      try { originalRemoveItem(key); } catch (err) { /* ignore */ }
+    });
+  }
+
+  // Keep one local safety copy of the progress about to be wiped (never
+  // synced), so a mis-click on a brand-new account isn't unrecoverable.
+  function archiveProgress() {
+    const state = collectState();
+    if (isEmptyProgress(state)) return;
+    writeJSON(ARCHIVE_KEY, { archivedAt: new Date().toISOString(), state });
+  }
+
   // --- API ---
   async function api(method, path, body, token) {
     const headers = { 'Content-Type': 'application/json' };
@@ -356,7 +418,8 @@
   // --- setItem patch: auto-push on any synced-key write ---
   localStorage.setItem = function (key, value) {
     originalSetItem(key, value);
-    if (AUTH_KEY === key || PREFS_AT_KEY === key || PREFS_SNAP_KEY === key) return;
+    if (AUTH_KEY === key || OWNER_KEY === key || ARCHIVE_KEY === key ||
+        PREFS_AT_KEY === key || PREFS_SNAP_KEY === key) return;
     if (SYNC_KEYS.indexOf(key) !== -1) schedulePush();
   };
 
@@ -380,6 +443,11 @@
     els.close = document.getElementById('sync-close');
     els.close2 = document.getElementById('sync-close-2');
     els.manualSync = document.getElementById('sync-now');
+    els.claim = document.getElementById('sync-claim');
+    els.claimText = document.getElementById('sync-claim-text');
+    els.claimImport = document.getElementById('sync-claim-import');
+    els.claimFresh = document.getElementById('sync-claim-fresh');
+    els.claimCancel = document.getElementById('sync-claim-cancel');
   }
 
   let mode = 'login'; // 'login' | 'signup'
@@ -405,6 +473,14 @@
   function renderUI() {
     if (!els.overlay) return;
     const auth = getAuth();
+    const claiming = Boolean(pendingClaim && els.claim);
+    if (els.claim) els.claim.hidden = !claiming;
+    if (claiming) {
+      els.form.hidden = true;
+      els.signedIn.hidden = true;
+      if (els.status) els.status.textContent = 'Confirm where this device\u2019s progress goes';
+      return;
+    }
     if (auth) {
       els.form.hidden = true;
       els.signedIn.hidden = false;
@@ -428,7 +504,102 @@
   }
 
   function closeOverlay() {
+    pendingClaim = null; // dismissing the prompt leaves the device unclaimed
     if (els.overlay) els.overlay.classList.remove('visible');
+  }
+
+  // --- Claim flow: whose data is this device's blob? ---
+  // `pendingClaim` holds the session token in memory only — until the user
+  // picks an option, no auth exists on disk, so background sync (auto-push,
+  // visibility changes) cannot move device data into an account unseen.
+  let pendingClaim = null;
+
+  // 'sync'   → silent path: owner already matches, or there is nothing to
+  //            protect (empty device), so claiming is harmless.
+  // 'prompt' → the user must choose before any data moves.
+  function decideClaim(username) {
+    const owner = getOwner();
+    if (owner === username) return { action: 'sync' };
+    const local = collectState();
+    if (isEmptyProgress(local)) return { action: 'sync', claim: true };
+    if (!owner) {
+      return {
+        action: 'prompt',
+        kind: 'import',
+        username,
+        wordsPlayed: Number((local.stats && local.stats.wordsPlayed) || 0)
+      };
+    }
+    return { action: 'prompt', kind: 'switch', username, owner };
+  }
+
+  function showClaimPrompt(claim, token) {
+    pendingClaim = {
+      username: claim.username,
+      token: token,
+      kind: claim.kind,
+      owner: claim.owner
+    };
+    const words = Number(claim.wordsPlayed || 0);
+    if (els.claimText) {
+      els.claimText.textContent = claim.kind === 'switch'
+        ? 'This device\u2019s progress was synced with @' + claim.owner +
+          '. Continue as @' + claim.username +
+          ': use that account\u2019s data, or also import what\u2019s on this device?'
+        : 'You played ' + words + ' word' + (words === 1 ? '' : 's') +
+          ' on this device. Import that progress into @' + claim.username + '?';
+    }
+    if (els.claimImport) {
+      els.claimImport.textContent = claim.kind === 'switch'
+        ? 'Import device data'
+        : 'Import into @' + claim.username;
+    }
+    if (els.claimFresh) {
+      els.claimFresh.textContent = claim.kind === 'switch'
+        ? 'Use ' + claim.username + '\u2019s data'
+        : 'Start fresh';
+    }
+    setMessage('', null);
+    renderUI();
+  }
+
+  async function resolveClaim(choice) {
+    const claim = pendingClaim;
+    if (!claim) return;
+    pendingClaim = null;
+    if (els.claimImport) els.claimImport.disabled = true;
+    if (els.claimFresh) els.claimFresh.disabled = true;
+
+    setOwner(claim.username);
+    setAuth(claim.username, claim.token);
+    if (choice === 'fresh') {
+      archiveProgress();
+      wipeProgress();
+    }
+
+    let ok = false;
+    try {
+      const result = await syncNow({ reloadIfChanged: true });
+      ok = Boolean(result && result.ok);
+    } catch (err) {
+      ok = false; // offline — state stays local and retries on the next change
+    }
+
+    if (els.claimImport) els.claimImport.disabled = false;
+    if (els.claimFresh) els.claimFresh.disabled = false;
+    renderUI();
+
+    if (!ok) {
+      setMessage('Signed in. Sync will finish when you\u2019re online.', null);
+      return;
+    }
+    if (choice === 'import') {
+      setMessage('Signed in. Your device progress was imported.', 'ok');
+    } else {
+      setMessage(claim.kind === 'switch'
+        ? 'Signed in. Using @' + claim.username + '\u2019s data.'
+        : 'Signed in. Starting fresh.', 'ok');
+    }
   }
 
   async function submitAuth() {
@@ -442,19 +613,27 @@
     setMessage(mode === 'signup' ? 'Creating account…' : 'Signing in…', null);
     try {
       const path = mode === 'signup' ? '/api/signup' : '/api/login';
-      const payload = { username, pin };
-      if (mode === 'signup') payload.state = collectState();
-      const res = await api('POST', path, payload, null);
+      const res = await api('POST', path, { username, pin }, null);
       if (!res.ok) {
         const msg = res.body && res.body.error ? res.body.error : 'Something went wrong.';
         setMessage(msg, 'error');
         return;
       }
-      setAuth(res.body.username, res.body.token);
       els.pin.value = '';
-      await syncNow({ reloadIfChanged: true });
-      renderUI();
-      setMessage('Signed in. Your progress is syncing.', 'ok');
+
+      // Deliberately no `state` seed on signup: a new account starts empty
+      // and device data only moves in if the claim below says so.
+      const nextUser = res.body.username;
+      const claim = decideClaim(nextUser);
+      if (claim.action === 'sync') {
+        if (claim.claim) setOwner(nextUser);
+        setAuth(nextUser, res.body.token);
+        await syncNow({ reloadIfChanged: true });
+        renderUI();
+        setMessage('Signed in. Your progress is syncing.', 'ok');
+        return;
+      }
+      showClaimPrompt(claim, res.body.token);
     } catch (err) {
       setMessage('Could not reach the server. Check your connection.', 'error');
     } finally {
@@ -501,6 +680,9 @@
       });
     }
     if (els.signout) els.signout.addEventListener('click', signOut);
+    if (els.claimImport) els.claimImport.addEventListener('click', () => resolveClaim('import'));
+    if (els.claimFresh) els.claimFresh.addEventListener('click', () => resolveClaim('fresh'));
+    if (els.claimCancel) els.claimCancel.addEventListener('click', closeOverlay);
     if (els.manualSync) {
       els.manualSync.addEventListener('click', async () => {
         setMessage('Syncing…', null);
@@ -529,5 +711,8 @@
   }
 
   // Expose for debugging / manual use.
-  window.spellitSync = { collectState, mergeBundles, syncNow, pushState };
+  window.spellitSync = {
+    collectState, mergeBundles, syncNow, pushState,
+    decideClaim, isEmptyProgress, getOwner, setOwner, wipeProgress, archiveProgress
+  };
 })();

@@ -111,6 +111,7 @@ How it works
 /api/signup, /api/login, /api/logout — username + PIN accounts. The PIN is hashed with scrypt (per-user salt); sessions are opaque bearer tokens stored in KV with a 30-day TTL.
 /api/sync — GET returns the stored state bundle; PUT replaces it. The state blob is opaque to the server; the client owns all merge logic.
 Client merge (sync.js) runs a pull → merge → apply → push cycle on load, on tab focus, and (debounced) after any state write. Conflicts are resolved deterministically: counters take the max, day/word maps are unioned per field, badges keep the earliest earned timestamp, and settings use last-write-wins with a timestamp. The merge is idempotent, so it never loops.
+Ownership: a device's progress blob belongs to at most one account (localStorage key spellit-sync-owner). New accounts are never seeded with device data; the first sign-in with unclaimed progress asks whether to import it or start fresh, and signing into a different account never inherits the previous one's data silently.
 Offline-first: if the network is unavailable, writes stay in localStorage and retry on the next change. The app is fully usable without ever signing in.
 
 Setup (Vercel)
