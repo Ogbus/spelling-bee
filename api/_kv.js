@@ -31,6 +31,12 @@ async function command(...args) {
   if (!res.ok) {
     const err = new Error(`KV request failed (${res.status}).`);
     err.code = 'KV_REQUEST_FAILED';
+    err.status = res.status;
+    try {
+      err.body = await res.text();
+    } catch (readErr) {
+      // ignore body read failures
+    }
     throw err;
   }
   const data = await res.json();

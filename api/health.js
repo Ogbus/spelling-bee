@@ -17,7 +17,23 @@ module.exports = async (req, res) => {
     const envVarsPresent = {};
     NAMES.forEach((name) => { envVarsPresent[name] = Boolean(process.env[name]); });
 
+    const rawUrl =
+      process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '';
+    let urlHost = null;
+    let urlScheme = null;
+    if (rawUrl) {
+      try {
+        const parsed = new URL(rawUrl);
+        urlHost = parsed.host;
+        urlScheme = parsed.protocol;
+      } catch (err) {
+        urlScheme = 'invalid-url';
+      }
+    }
+
     let roundTrip = 'skipped';
+    let kvStatus = null;
+    let kvBody = '';
     if (kv.isConfigured()) {
       try {
         const key = 'health:' + Date.now() + ':' + Math.random().toString(36).slice(2);
@@ -26,7 +42,9 @@ module.exports = async (req, res) => {
         await kv.del(key);
         roundTrip = value === 'ok' ? 'ok' : 'unexpected-response';
       } catch (err) {
-        roundTrip = 'error:' + (err.code || err.message || 'unknown');
+        roundTrip = err.code || 'error:' + (err.message || 'unknown');
+        if (err.status) kvStatus = err.status;
+        if (err.body) kvBody = String(err.body).slice(0, 300);
       }
     }
 
@@ -34,7 +52,11 @@ module.exports = async (req, res) => {
       configured: kv.isConfigured(),
       node: process.version,
       envVarsPresent,
-      roundTrip
+      urlHost,
+      urlScheme,
+      roundTrip,
+      kvStatus,
+      kvBody
     });
   } catch (err) {
     handleError(res, err);
