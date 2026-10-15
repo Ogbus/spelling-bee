@@ -114,6 +114,17 @@ Client merge (sync.js) runs a pull → merge → apply → push cycle on load, o
 Ownership: a device's progress blob belongs to at most one account (localStorage key spellit-sync-owner). New accounts are never seeded with device data; the first sign-in with unclaimed progress asks whether to import it or start fresh, and signing into a different account never inherits the previous one's data silently.
 Offline-first: if the network is unavailable, writes stay in localStorage and retry on the next change. The app is fully usable without ever signing in.
 
+Leaderboard
+
+Signed-in users can opt in to a public board ranked by correct words spelled. Opting in is explicit and cosmetic: the board shows a display name, never the login username.
+
+- /api/profile — GET returns the account's display name + opt-in flag; PUT sets them. Opting in requires a valid display name.
+- /api/leaderboard — GET ?limit=20 (max 50) returns the top entries plus the caller's own standing. Display names only; login usernames are never sent to clients. Cached for 30 seconds.
+- Right after a successful sign-in the app offers to add the user to the board; it is also reachable any time from the footer.
+- Scores are stored in a Redis sorted set (lb:correct) and kept up to date on every sync PUT and profile save.
+
+Anti-cheat is trust + sanity caps, not tamper-proofing: the state blob is client-owned by design, so scores are clamped to a sane maximum (100k) and the board is documented as best-effort. Container names (not login names) are shown, and opt-out removes the account from the board immediately.
+
 Setup (Vercel)
 
 1. Deploy the repo to Vercel as usual (the /api directory is picked up automatically as Node.js functions).

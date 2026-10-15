@@ -157,6 +157,7 @@
             <button class="reset-btn" id="history-btn" type="button">View history</button>
             <button class="reset-btn" id="reset-btn" type="button">Reset progress</button>
             <button class="reset-btn" id="sync-now-btn" type="button">Sync</button>
+            <button class="reset-btn" id="leaderboard-btn" type="button">Leaderboard</button>
         </div>
         
     </div>
@@ -307,6 +308,40 @@
             <p class="sync-status" id="sync-status"></p>
         </div>
     </div>
+
+    <div class="modal-overlay" id="leaderboard-overlay">
+        <div class="modal modal-lb" role="dialog" aria-modal="true" aria-labelledby="lb-title">
+            <p class="modal-title" id="lb-title">Leaderboard</p>
+
+            <div id="lb-profile">
+                <p class="sync-mode-hint" id="lb-join-hint" hidden>Want to compete? Pick a display name and show up on the leaderboard.</p>
+                <label class="sync-field">
+                    <span class="sync-label">Display name</span>
+                    <input class="sync-input" id="lb-name" type="text" maxlength="20" autocomplete="off" spellcheck="false" placeholder="e.g. Bee Speller">
+                </label>
+                <label class="lb-optin-row">
+                    <input id="lb-optin" type="checkbox">
+                    <span>Show me on the leaderboard</span>
+                </label>
+                <button class="modal-btn modal-btn-primary" id="lb-save" type="button">Save profile</button>
+                <p class="sync-msg" id="lb-profile-msg"></p>
+            </div>
+
+            <ol class="lb-list" id="lb-list"></ol>
+            <p class="lb-empty" id="lb-empty" hidden>No one is on the board yet — be the first!</p>
+            <p class="lb-me" id="lb-me" hidden></p>
+
+            <div class="lb-cta" id="lb-cta" hidden>
+                <button class="modal-btn modal-btn-primary" id="lb-join" type="button">Sign in to join</button>
+            </div>
+
+            <p class="sync-msg" id="lb-msg"></p>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="lb-close" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="words.js"></script>
     <script src="defs-easy.js"></script>
     <script src="defs-medium.js"></script>
@@ -314,5 +349,6 @@
     <script src="definitions.js"></script>
     <script src="script.js"></script>
     <script src="sync.js"></script>
+    <script src="leaderboard.js"></script>
 </body>
 </html>

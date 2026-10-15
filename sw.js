@@ -1,11 +1,12 @@
 // Spell It — service worker: offline-first caching for the app shell.
-const CACHE = 'spellit-v4';
+const CACHE = 'spellit-v5';
 const PRECACHE = [
   './',
   './index.html',
   './styles.css',
   './script.js',
   './sync.js',
+  './leaderboard.js',
   './words.js',
   './defs-easy.js',
   './defs-medium.js',

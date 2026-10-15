@@ -6,6 +6,7 @@
 
 const kv = require('./_kv');
 const auth = require('./_auth');
+const lb = require('./_lb');
 const { sendJSON, readBody, handleError } = require('./_http');
 
 const MAX_STATE_BYTES = 1024 * 1024; // 1 MB per user
@@ -45,6 +46,18 @@ module.exports = async (req, res) => {
       }
       const updatedAt = new Date().toISOString();
       await kv.setJSON(stateKey(username), { state: state || null, updatedAt });
+
+      // Keep the leaderboard in step if this account opted in. Best-effort:
+      // a leaderboard hiccup must never fail an otherwise successful sync.
+      try {
+        const profile = await lb.getProfile(username);
+        if (profile && profile.showOnLeaderboard) {
+          await lb.updateScore(username, profile, lb.extractCorrectCount(state));
+        }
+      } catch (lbErr) {
+        console.error('Spell It leaderboard update skipped:', lbErr);
+      }
+
       sendJSON(res, 200, { updatedAt });
       return;
     }

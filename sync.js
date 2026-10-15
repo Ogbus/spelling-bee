@@ -600,6 +600,15 @@
         ? 'Signed in. Using @' + claim.username + '\u2019s data.'
         : 'Signed in. Starting fresh.', 'ok');
     }
+    promptLeaderboardOptIn();
+  }
+
+  // Hand off to the leaderboard module to nudge the user to opt in. Called
+  // right after a successful sign-in so the prompt feels like part of the
+  // flow rather than a surprise popup later.
+  function promptLeaderboardOptIn() {
+    const lb = window.spellitLeaderboard;
+    if (lb && typeof lb.onSignedIn === 'function') lb.onSignedIn();
   }
 
   async function submitAuth() {
@@ -631,6 +640,7 @@
         await syncNow({ reloadIfChanged: true });
         renderUI();
         setMessage('Signed in. Your progress is syncing.', 'ok');
+        promptLeaderboardOptIn();
         return;
       }
       showClaimPrompt(claim, res.body.token);
@@ -649,6 +659,9 @@
     clearAuth();
     renderUI();
     setMessage('Signed out. Your data stays on this device.', null);
+    if (window.spellitLeaderboard && typeof window.spellitLeaderboard.onSignedOut === 'function') {
+      window.spellitLeaderboard.onSignedOut();
+    }
   }
 
   function initUI() {
@@ -713,6 +726,7 @@
   // Expose for debugging / manual use.
   window.spellitSync = {
     collectState, mergeBundles, syncNow, pushState,
-    decideClaim, isEmptyProgress, getOwner, setOwner, wipeProgress, archiveProgress
+    decideClaim, isEmptyProgress, getOwner, setOwner, wipeProgress, archiveProgress,
+    open: openOverlay, close: closeOverlay
   };
 })();
